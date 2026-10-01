@@ -1,0 +1,22 @@
+{
+  "name": "omniflow",
+  "version": "2.4.0",
+  "description": "OMNIFlow - Bilişim ve Altyapı Yönetim Sistemi",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node --experimental-sqlite server/index.js",
+    "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev"
+  },
+  "keywords": [
+    "omniflow",
+    "it-management",
+    "infrastructure",
+    "network-topology",
+    "servers",
+    "licenses"
+  ],
+  "author": "Önder Cihan ACAR",
+  "license": "UNLICENSED"
+}
