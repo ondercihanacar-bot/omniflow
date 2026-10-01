@@ -7,11 +7,9 @@ server/node_modules/
 # client/dist/
 
 # Database and secrets (PROTECT SENSITIVE DATA)
-server/data/*.db
 server/data/*.db-shm
 server/data/*.db-wal
 server/data/*.json
-*.db
 *.db-shm
 *.db-wal
 
