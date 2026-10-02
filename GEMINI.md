@@ -21,3 +21,7 @@
 
 ## 4. Marka ve İsim Standardı (Branding Invariant)
 - Programın adı kesin ve istisnasız olarak **"OMNIFlow"** dur. "IT Manager Pro" ismi hiçbir yerde kullanılmamalıdır.
+
+## 5. Otomatik Yedekleme ve Git Senkronizasyonu (Backup & Auto-Push Invariant)
+- **Ön-Yedekleme Kuralı (Geri Dönüş Güvencesi):** Her kod veya veritabanı değişikliğinden sonra ve GitHub'a göndermeden hemen önce, `server/data/itmanager.db` dosyasının zaman damgalı tam kopyası `Otomatik_Yedekler/` klasörüne yedeklenmelidir (`OmniFlow_Backup_YYYY-MM-DD_HH-mm-ss.db`). Böylece istenmeyen bir durumda tek tıkla önceki sürüme geri dönülebilir.
+- **Otomatik Git Push:** Yapılan her değişiklikten sonra `client` derlemesi (`npm run build`) tamamlanmalı; değişiklikler otomatik olarak `git add .`, zaman damgalı açıklayıcı `git commit` ve `git push origin main` ile GitHub'a gönderilmelidir. Bu sayede Render canlı bulut sunucusu (`https://omniflow-mptm.onrender.com`) her zaman en güncel sürümde kalır.
