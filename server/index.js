@@ -11,6 +11,14 @@ const licenseService = require('./licenseService');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Global process error safety guards to prevent unexpected background exits
+process.on('uncaughtException', (err) => {
+  console.error('[OmniFlow Server] Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[OmniFlow Server] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 app.use(cors());
 app.use(express.json({ limit: '60mb' }));
 app.use(express.urlencoded({ extended: true, limit: '60mb' }));
@@ -2892,20 +2900,29 @@ if (!fs.existsSync(autoBackupDir)) {
 
 // Function to generate full JSON dump of database
 function generateFullJsonExport() {
-  const customers = db.prepare('SELECT * FROM customers').all();
-  const lines = db.prepare('SELECT * FROM internet_lines').all();
-  const servers = db.prepare('SELECT * FROM physical_servers').all();
-  const vms = db.prepare('SELECT * FROM virtual_machines').all();
-  const pcs = db.prepare('SELECT * FROM user_computers').all();
-  const firewalls = db.prepare('SELECT * FROM firewalls').all();
-  const backups = db.prepare('SELECT * FROM backup_units').all();
-  const wifiControllers = db.prepare('SELECT * FROM wifi_controllers').all();
-  const wifiAps = db.prepare('SELECT * FROM wifi_access_points').all();
-  const wifiNetworks = db.prepare('SELECT * FROM wifi_networks').all();
-  const antivirusLicenses = db.prepare('SELECT * FROM antivirus_licenses').all();
-  const mailServices = db.prepare('SELECT * FROM mail_services').all();
-  const mailAccounts = db.prepare('SELECT * FROM mail_accounts').all();
-  const knowledgeBase = db.prepare('SELECT * FROM knowledge_base').all();
+  const safeAll = (sql) => {
+    try {
+      return db.prepare(sql).all();
+    } catch (e) {
+      console.warn(`Query failed for "${sql}":`, e.message);
+      return [];
+    }
+  };
+
+  const customers = safeAll('SELECT * FROM customers');
+  const lines = safeAll('SELECT * FROM internet_lines');
+  const servers = safeAll('SELECT * FROM physical_servers');
+  const vms = safeAll('SELECT * FROM virtual_machines');
+  const pcs = safeAll('SELECT * FROM user_computers');
+  const firewalls = safeAll('SELECT * FROM firewalls');
+  const backups = safeAll('SELECT * FROM backup_units');
+  const wifiControllers = safeAll('SELECT * FROM wifi_controllers');
+  const wifiAps = safeAll('SELECT * FROM wifi_access_points');
+  const wifiNetworks = safeAll('SELECT * FROM wifi_networks');
+  const antivirusLicenses = safeAll('SELECT * FROM antivirus_licenses');
+  const mailServices = safeAll('SELECT * FROM mail_services');
+  const mailAccounts = safeAll('SELECT * FROM mail_accounts');
+  const knowledgeBase = safeAll('SELECT * FROM knowledge_base');
 
   return {
     exportDate: new Date().toISOString(),
@@ -2951,6 +2968,11 @@ function executeAutoBackup(manualTrigger = false) {
     const dbFilePath = path.join(__dirname, 'data', 'itmanager.db');
     if (!fs.existsSync(dbFilePath)) return null;
 
+    // Checkpoint SQLite WAL if active to ensure file integrity on disk
+    try {
+      db.exec('PRAGMA wal_checkpoint(PASSIVE);');
+    } catch (e) {}
+
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
     const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
@@ -2963,8 +2985,12 @@ function executeAutoBackup(manualTrigger = false) {
     // 2. Export complete JSON dump
     const jsonBackupName = `OmniFlow_Backup_${dateStr}.json`;
     const targetJsonPath = path.join(autoBackupDir, jsonBackupName);
-    const jsonData = generateFullJsonExport();
-    fs.writeFileSync(targetJsonPath, JSON.stringify(jsonData, null, 2), 'utf8');
+    try {
+      const jsonData = generateFullJsonExport();
+      fs.writeFileSync(targetJsonPath, JSON.stringify(jsonData, null, 2), 'utf8');
+    } catch (jErr) {
+      console.warn('[OmniFlow Auto-Backup] JSON dump warning:', jErr.message);
+    }
 
     // 3. Clean up older backups based on retention setting
     const retentionLimit = parseInt(getSetting('auto_backup_retention', '14'), 10) || 14;
@@ -2974,19 +3000,23 @@ function executeAutoBackup(manualTrigger = false) {
     const lastRunIso = now.toISOString();
     setSetting('auto_backup_last_run', lastRunIso);
 
-    security.logSecurityEvent('AUTO_BACKUP_SUCCESS', '127.0.0.1', manualTrigger ? 'MANUAL' : 'AUTO_TIMER', `Backup created: ${dbBackupName} & ${jsonBackupName}`);
+    try {
+      security.logSecurityEvent('AUTO_BACKUP_SUCCESS', '127.0.0.1', manualTrigger ? 'MANUAL' : 'AUTO_TIMER', `Backup created: ${dbBackupName} & ${jsonBackupName}`);
+    } catch (sErr) {}
 
     return {
       success: true,
       lastRun: lastRunIso,
       createdFiles: [
-        { filename: dbBackupName, type: 'db', size: fs.statSync(targetDbPath).size },
-        { filename: jsonBackupName, type: 'json', size: fs.statSync(targetJsonPath).size }
+        { filename: dbBackupName, type: 'db', size: fs.existsSync(targetDbPath) ? fs.statSync(targetDbPath).size : 0 },
+        { filename: jsonBackupName, type: 'json', size: fs.existsSync(targetJsonPath) ? fs.statSync(targetJsonPath).size : 0 }
       ]
     };
   } catch (err) {
     console.error('Auto backup execution error:', err);
-    security.logSecurityEvent('AUTO_BACKUP_ERROR', '127.0.0.1', 'SYSTEM', err.message);
+    try {
+      security.logSecurityEvent('AUTO_BACKUP_ERROR', '127.0.0.1', 'SYSTEM', err.message);
+    } catch (sErr) {}
     return null;
   }
 }
@@ -2997,11 +3027,18 @@ function cleanOldBackups(retentionLimit) {
     if (!fs.existsSync(autoBackupDir)) return;
     const files = fs.readdirSync(autoBackupDir)
       .filter(f => f.endsWith('.db') || f.endsWith('.json'))
-      .map(filename => ({
-        filename,
-        path: path.join(autoBackupDir, filename),
-        mtime: fs.statSync(path.join(autoBackupDir, filename)).mtime.getTime()
-      }))
+      .map(filename => {
+        try {
+          return {
+            filename,
+            path: path.join(autoBackupDir, filename),
+            mtime: fs.statSync(path.join(autoBackupDir, filename)).mtime.getTime()
+          };
+        } catch (e) {
+          return null;
+        }
+      })
+      .filter(Boolean)
       .sort((a, b) => b.mtime - a.mtime); // Newest first
 
     // Each backup run creates 2 files (.db + .json), so max files = retentionLimit * 2
