@@ -3277,4 +3277,22 @@ app.listen(PORT, () => {
   console.log(`OMNIFLOW SUNUCUSU BAŞLATILDI`);
   console.log(`Erişim Adresi: http://localhost:${PORT}`);
   console.log(`===============================================`);
+
+  // Local ortamda sunucu hazir oldugunda varsayilan tarayiciyi otomatik ac
+  if (!process.env.RENDER && process.env.AUTO_OPEN !== 'false' && process.env.NODE_ENV !== 'test') {
+    try {
+      const { exec } = require('child_process');
+      const url = `http://localhost:${PORT}`;
+      const startCmd = process.platform === 'win32'
+        ? `start "" "${url}"`
+        : process.platform === 'darwin'
+        ? `open "${url}"`
+        : `xdg-open "${url}"`;
+      exec(startCmd, (err) => {
+        if (err) console.warn('[OmniFlow] Tarayici otomatik acma uyarisi:', err.message);
+      });
+    } catch (openErr) {
+      console.warn('[OmniFlow] Tarayici acilamadi:', openErr.message);
+    }
+  }
 });

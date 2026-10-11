@@ -15,43 +15,35 @@ if exist "%~dp0server\runtime\node.exe" set "NODE_BIN=%~dp0server\runtime\node.e
 
 :: 2. Node.js erisim kontrolu
 where "%NODE_BIN%" >nul 2>&1
-if %errorlevel% equ 0 goto :CHECK_PORT
+if %errorlevel% neq 0 (
+    echo [HATA] Node.js calistiricisi sistemde bulunamadi!
+    echo Lutfen sisteminizde Node.js kurulu oldugundan emin olun.
+    pause
+    exit /b 1
+)
 
-echo [HATA] Node.js calistiricisi sistemde bulunamadi!
-echo Lutfen sisteminizde Node.js kurulu oldugundan emin olun.
-pause
-exit /b 1
-
-:CHECK_PORT
-:: 3. Port 5000 kontrolu
+:: 3. Port 5000 kontrolu (Sunucu zaten calisiyor mu?)
 netstat -ano | findstr :5000 | findstr LISTENING > nul
-if %errorlevel% equ 0 goto :RUNNING
+if %errorlevel% equ 0 goto :ALREADY_RUNNING
 
 echo OMNIFlow sunucusu baslatiliyor, lutfen bekleyin...
 echo Erisim Adresi: http://localhost:5000
 echo.
 
-:: Tarayiciyi otomatik ac
-start "" cmd /c "ping 127.0.0.1 -n 4 > nul & if exist \"%ProgramFiles%\Google\Chrome\Application\chrome.exe\" (start \"\" \"%ProgramFiles%\Google\Chrome\Application\chrome.exe\" \"http://localhost:5000\") else (start \"\" \"http://localhost:5000\")"
-
-:: Node sunucusunu calistir
+:: Sunucuyu baslat (Sunucu hazir oldugunda tarayici otomatik acilacaktir)
 "%NODE_BIN%" --experimental-sqlite server/index.js
 
 echo.
-echo [BILGI] OMNIFlow sunucusu sonlandi.
+echo [BILGI] OMNIFlow sunucusu kapandi.
 pause
 exit /b 0
 
-:RUNNING
+:ALREADY_RUNNING
 echo ======================================================================
 echo [OK] OMNIFlow sunucusu arka planda zaten aktif ve calisiyor.
 echo Tarayici aciliyor: http://localhost:5000
 echo ======================================================================
 echo.
-if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-    start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" "http://localhost:5000"
-) else (
-    start "" "http://localhost:5000"
-)
-ping 127.0.0.1 -n 4 > nul
+start "" "http://localhost:5000"
+ping 127.0.0.1 -n 3 > nul
 exit /b 0
