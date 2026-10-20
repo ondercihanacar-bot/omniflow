@@ -1,8 +1,531 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X, Server, Cloud, Laptop, Shield, Database,
-  Sparkles, ClipboardPaste, Check, AlertCircle, ChevronDown, ChevronUp
+  Sparkles, ClipboardPaste, Check, AlertCircle, ChevronDown, ChevronUp,
+  Plus, Trash2, Search
 } from 'lucide-react';
+
+// ==================== PREDEFINED ENTERPRISE IT PRESETS ====================
+export const DEFAULT_DEPARTMENTS = [
+  'Muhasebe',
+  'Finans',
+  'İnsan Kaynakları (İK)',
+  'Bilgi İşlem (IT)',
+  'Satış & Pazarlama',
+  'Satın Alma',
+  'Yönetim & Genel Müdürlük',
+  'Lojistik & Sevkiyat',
+  'Depo & Stok',
+  'Üretim & Fabrika',
+  'Planlama & Kalite',
+  'Hukuk',
+  'İthalat & İhracat',
+  'Ar-Ge & Tasarım',
+  'Teknik Servis',
+  'Müşteri Hizmetleri',
+  'İdari İşler',
+  'Güvenlik'
+];
+
+export const DEFAULT_DEVICE_TYPES = [
+  'Masaüstü',
+  'Laptop',
+  'All-in-One',
+  'Mini PC',
+  'Apple Mac / MacBook',
+  'İş İstasyonu (Workstation)',
+  'Endüstriyel PC',
+  'Tablet',
+  'El Terminali',
+  'POS / Kiosk'
+];
+
+export const DEFAULT_PC_BRANDS = [
+  'Lenovo',
+  'Dell',
+  'HP',
+  'Apple',
+  'Asus',
+  'Acer',
+  'MSI',
+  'Casper / Nirvana',
+  'Monster',
+  'Samsung',
+  'Toshiba / Dynabook',
+  'Intel NUC',
+  'Toplama / OEM',
+  'Diğer'
+];
+
+export const DEFAULT_OS_VERSIONS = [
+  'Windows 11 Pro',
+  'Windows 11 Home',
+  'Windows 11 Enterprise',
+  'Windows 10 Pro',
+  'Windows 10 Home',
+  'Windows 10 Enterprise LTSC',
+  'Windows 7 Pro',
+  'macOS Sequoia',
+  'macOS Sonoma',
+  'macOS Ventura',
+  'Ubuntu Linux Desktop',
+  'Debian Linux',
+  'Pardus Linux',
+  'FreeDOS'
+];
+
+export const DEFAULT_OFFICE_VERSIONS = [
+  'Microsoft 365 Business Standard',
+  'Microsoft 365 Apps for Business',
+  'Microsoft 365 Personal / Family',
+  'Office 2024 Home & Business',
+  'Office 2021 Home & Business',
+  'Office 2021 Professional Plus',
+  'Office 2019 Home & Business',
+  'Office 2019 Professional Plus',
+  'Office 2016 Home & Business',
+  'Office 2016 Pro Plus',
+  'Office 2013',
+  'LibreOffice',
+  'WPS Office',
+  'Yok / Lisanssız'
+];
+
+export const DEFAULT_SERVER_BRANDS = [
+  'Dell PowerEdge',
+  'HPE ProLiant',
+  'Lenovo ThinkSystem',
+  'Cisco UCS',
+  'Supermicro',
+  'Huawei FusionServer',
+  'IBM System x',
+  'Toplama / OEM Rack',
+  'Diğer'
+];
+
+export const DEFAULT_SERVER_OS = [
+  'Windows Server 2025 Standard',
+  'Windows Server 2022 Standard',
+  'Windows Server 2022 Datacenter',
+  'Windows Server 2019 Standard',
+  'Windows Server 2019 Datacenter',
+  'Windows Server 2016 Standard',
+  'Windows Server 2012 R2',
+  'VMware ESXi 8.0',
+  'VMware ESXi 7.0',
+  'Proxmox VE 8.x',
+  'Ubuntu Server 24.04 LTS',
+  'Ubuntu Server 22.04 LTS',
+  'Debian 12 (Bookworm)',
+  'Red Hat Enterprise Linux (RHEL)',
+  'AlmaLinux / Rocky Linux'
+];
+
+export const DEFAULT_HYPERVISORS = [
+  'VMware ESXi',
+  'VMware vSphere',
+  'Microsoft Hyper-V',
+  'Proxmox VE',
+  'Nutanix AHV',
+  'KVM / QEMU',
+  'XenServer / XCP-ng',
+  'Bare-Metal / Bağımsız'
+];
+
+export const DEFAULT_FIREWALL_BRANDS = [
+  'SonicWall',
+  'Fortinet / FortiGate',
+  'Sophos XG / XGS',
+  'WatchGuard',
+  'pfSense',
+  'OPNsense',
+  'Palo Alto',
+  'Cisco Meraki',
+  'MikroTik',
+  'DrayTek',
+  'Zyxel',
+  'Diğer'
+];
+
+export const DEFAULT_NAS_BRANDS = [
+  'Synology',
+  'QNAP',
+  'TrueNAS / FreeNAS',
+  'Asustor',
+  'Western Digital My Cloud',
+  'Dell PowerVault',
+  'HPE StoreEasy',
+  'Diğer'
+];
+
+export const DEFAULT_BACKUP_SOFTWARE = [
+  'Veeam Backup & Replication',
+  'Acronis Cyber Protect',
+  'Synology Active Backup for Business',
+  'QNAP NetBak Replicator',
+  'Nakivo Backup & Replication',
+  'Commvault',
+  'Windows Server Backup',
+  'Cobian Backup',
+  'Bacula',
+  'Diğer'
+];
+
+// ==================== REUSABLE PRESET COMBOBOX WITH INLINE (+) ADD ====================
+export function PresetCombobox({
+  label,
+  presetKey,
+  defaultOptions = [],
+  value = '',
+  onChange,
+  placeholder = '',
+  required = false,
+  colorScheme = 'emerald'
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newItemText, setNewItemText] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [customOptions, setCustomOptions] = useState([]);
+  const containerRef = useRef(null);
+  const addInputRef = useRef(null);
+
+  // Load custom presets from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`omniflow_presets_${presetKey}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setCustomOptions(parsed);
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to load presets for ${presetKey}`, err);
+    }
+  }, [presetKey]);
+
+  // Click outside to close dropdown & add mode
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+        setIsAdding(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Auto focus input when isAdding becomes true
+  useEffect(() => {
+    if (isAdding && addInputRef.current) {
+      addInputRef.current.focus();
+    }
+  }, [isAdding]);
+
+  // Add new preset
+  const handleAddPreset = (textToAdd) => {
+    const trimmed = (textToAdd !== undefined ? textToAdd : newItemText).trim();
+    if (!trimmed) return;
+
+    if (!defaultOptions.includes(trimmed) && !customOptions.includes(trimmed)) {
+      const updated = [...customOptions, trimmed];
+      setCustomOptions(updated);
+      try {
+        localStorage.setItem(`omniflow_presets_${presetKey}`, JSON.stringify(updated));
+      } catch (err) {
+        console.error('Failed to save preset', err);
+      }
+    }
+
+    onChange(trimmed);
+    setNewItemText('');
+    setIsAdding(false);
+    setIsOpen(false);
+    setSearchTerm('');
+  };
+
+  // Delete custom preset
+  const handleDeleteCustom = (e, itemToDelete) => {
+    e.stopPropagation();
+    const updated = customOptions.filter((o) => o !== itemToDelete);
+    setCustomOptions(updated);
+    try {
+      localStorage.setItem(`omniflow_presets_${presetKey}`, JSON.stringify(updated));
+    } catch (err) {
+      console.error('Failed to delete preset', err);
+    }
+  };
+
+  // Combined options: custom options first so user sees their additions easily
+  const allOptions = [
+    ...customOptions,
+    ...defaultOptions.filter((d) => !customOptions.includes(d))
+  ];
+
+  const filteredOptions = allOptions.filter((opt) =>
+    opt.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const hasExactMatch = allOptions.some(
+    (o) => o.toLowerCase() === (searchTerm || value || '').trim().toLowerCase()
+  );
+
+  const colors = {
+    emerald: {
+      borderFocus: 'focus:border-emerald-500',
+      activeText: 'text-emerald-400',
+      activeTextHover: 'hover:text-emerald-300',
+      bgSelected: 'bg-emerald-600/20 text-emerald-300',
+      btnSave: 'bg-emerald-600 hover:bg-emerald-500',
+      activeRing: 'ring-emerald-500/30 border-emerald-500/60'
+    },
+    indigo: {
+      borderFocus: 'focus:border-indigo-500',
+      activeText: 'text-indigo-400',
+      activeTextHover: 'hover:text-indigo-300',
+      bgSelected: 'bg-indigo-600/20 text-indigo-300',
+      btnSave: 'bg-indigo-600 hover:bg-indigo-500',
+      activeRing: 'ring-indigo-500/30 border-indigo-500/60'
+    },
+    purple: {
+      borderFocus: 'focus:border-purple-500',
+      activeText: 'text-purple-400',
+      activeTextHover: 'hover:text-purple-300',
+      bgSelected: 'bg-purple-600/20 text-purple-300',
+      btnSave: 'bg-purple-600 hover:bg-purple-500',
+      activeRing: 'ring-purple-500/30 border-purple-500/60'
+    },
+    amber: {
+      borderFocus: 'focus:border-amber-500',
+      activeText: 'text-amber-400',
+      activeTextHover: 'hover:text-amber-300',
+      bgSelected: 'bg-amber-600/20 text-amber-300',
+      btnSave: 'bg-amber-600 hover:bg-amber-500',
+      activeRing: 'ring-amber-500/30 border-amber-500/60'
+    },
+    rose: {
+      borderFocus: 'focus:border-rose-500',
+      activeText: 'text-rose-400',
+      activeTextHover: 'hover:text-rose-300',
+      bgSelected: 'bg-rose-600/20 text-rose-300',
+      btnSave: 'bg-rose-600 hover:bg-rose-500',
+      activeRing: 'ring-rose-500/30 border-rose-500/60'
+    }
+  };
+
+  const scheme = colors[colorScheme] || colors.emerald;
+
+  return (
+    <div className={`relative ${isOpen || isAdding ? 'z-30' : 'z-10'}`} ref={containerRef}>
+      {/* Field Label & Quick Add (+) Button */}
+      <div className="flex items-center justify-between mb-1">
+        <label className="block text-xs font-semibold text-slate-300 truncate pr-1">
+          {label} {required && <span className="text-rose-400">*</span>}
+        </label>
+        <button
+          type="button"
+          onClick={() => {
+            setIsAdding((prev) => !prev);
+            if (!isOpen) setIsOpen(false);
+          }}
+          className={`text-[11px] font-medium flex items-center gap-1 transition-all px-1.5 py-0.5 rounded cursor-pointer ${
+            isAdding
+              ? 'bg-amber-500/20 text-amber-300'
+              : `${scheme.activeText} ${scheme.activeTextHover} hover:bg-slate-800`
+          }`}
+          title={`Yeni ${label} Tanımla`}
+        >
+          <Plus className="w-3 h-3 stroke-[2.5]" />
+          <span>{isAdding ? 'Kapat' : 'Ekle'}</span>
+        </button>
+      </div>
+
+      {/* Inline Quick-Add Mode */}
+      {isAdding ? (
+        <div className={`flex items-center gap-1.5 bg-slate-950 border rounded-lg p-1 shadow-lg ring-1 ${scheme.activeRing}`}>
+          <input
+            ref={addInputRef}
+            type="text"
+            placeholder={`Yeni ${label.toLowerCase()} yazın...`}
+            value={newItemText}
+            onChange={(e) => setNewItemText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleAddPreset();
+              } else if (e.key === 'Escape') {
+                setIsAdding(false);
+              }
+            }}
+            className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => handleAddPreset()}
+            disabled={!newItemText.trim()}
+            className={`px-2.5 py-1 ${scheme.btnSave} disabled:opacity-40 text-white rounded text-xs font-semibold flex items-center gap-1 shrink-0 transition-colors shadow-sm cursor-pointer`}
+          >
+            <Check className="w-3.5 h-3.5" />
+            <span>Kaydet</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsAdding(false);
+              setNewItemText('');
+            }}
+            className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded shrink-0 cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ) : (
+        /* Regular Combobox Input */
+        <div className="relative">
+          <input
+            type="text"
+            required={required}
+            placeholder={placeholder}
+            value={value || ''}
+            onChange={(e) => {
+              onChange(e.target.value);
+              setSearchTerm(e.target.value);
+              if (!isOpen) setIsOpen(true);
+            }}
+            onFocus={() => {
+              setSearchTerm('');
+              setIsOpen(true);
+            }}
+            className={`w-full bg-slate-950 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:outline-none transition-colors ${scheme.borderFocus}`}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setSearchTerm('');
+              setIsOpen((prev) => !prev);
+            }}
+            tabIndex={-1}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5 rounded transition-colors cursor-pointer"
+          >
+            <ChevronDown
+              className={`w-4 h-4 transition-transform duration-200 ${
+                isOpen ? `rotate-180 ${scheme.activeText}` : ''
+              }`}
+            />
+          </button>
+        </div>
+      )}
+
+      {/* Dropdown Menu */}
+      {isOpen && !isAdding && (
+        <div className="absolute left-0 right-0 z-50 mt-1 max-h-56 overflow-y-auto rounded-xl bg-slate-900 border border-slate-700 shadow-2xl py-1 backdrop-blur-md">
+          {/* Search Filter Header */}
+          {allOptions.length > 5 && (
+            <div className="px-2 py-1.5 border-b border-slate-800 sticky top-0 bg-slate-900/95 backdrop-blur-sm z-10">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Seçeneklerde ara..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-md pl-7 pr-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Quick-add row if search text doesn't exist */}
+          {searchTerm.trim() && !hasExactMatch && (
+            <div className="p-1 border-b border-slate-800 bg-emerald-950/30">
+              <button
+                type="button"
+                onClick={() => handleAddPreset(searchTerm)}
+                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold ${scheme.activeText} hover:bg-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer`}
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span className="truncate">&quot;{searchTerm.trim()}&quot; seçeneğini yeni olarak kaydet</span>
+              </button>
+            </div>
+          )}
+
+          {/* Options List */}
+          <div className="py-1">
+            {filteredOptions.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-slate-400 text-center italic">
+                Eşleşen seçenek bulunamadı.
+              </div>
+            ) : (
+              filteredOptions.map((opt, idx) => {
+                const isSelected = value === opt;
+                const isCustom = customOptions.includes(opt);
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      onChange(opt);
+                      setIsOpen(false);
+                      setSearchTerm('');
+                    }}
+                    className={`px-3 py-1.5 text-xs cursor-pointer flex items-center justify-between transition-colors ${
+                      isSelected
+                        ? scheme.bgSelected + ' font-semibold'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      {isSelected ? (
+                        <Check className={`w-3.5 h-3.5 ${scheme.activeText} shrink-0`} />
+                      ) : (
+                        <span className="w-3.5 h-3.5 shrink-0" />
+                      )}
+                      <span className="truncate">{opt}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      {isCustom && (
+                        <>
+                          <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            Özel
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteCustom(e, opt)}
+                            title="Bu özel seçeneği sil"
+                            className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/20 rounded transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Dropdown Footer Quick-Add Button */}
+          <div className="p-1 border-t border-slate-800 bg-slate-950/40">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAdding(true);
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium ${scheme.activeText} hover:bg-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer`}
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Yeni {label} Ekle...</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ==================== 1. PHYSICAL SERVER MODAL ====================
 export function ServerModal({ isOpen, onClose, onSave, server = null, customerId, branches = [] }) {
@@ -124,13 +647,14 @@ export function ServerModal({ isOpen, onClose, onSave, server = null, customerId
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Marka</label>
-              <input
-                type="text"
-                placeholder="Örn: Dell, HP, Lenovo"
+              <PresetCombobox
+                label="Marka"
+                presetKey="server_brand"
+                defaultOptions={DEFAULT_SERVER_BRANDS}
                 value={formData.brand}
-                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                onChange={(val) => setFormData({ ...formData, brand: val })}
+                placeholder="Örn: Dell PowerEdge, HPE"
+                colorScheme="indigo"
               />
             </div>
             <div>
@@ -462,13 +986,14 @@ export function VMModal({ isOpen, onClose, onSave, vm = null, customerId, physic
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Sanallaştırma Platformu</label>
-              <input
-                type="text"
-                placeholder="Örn: VMware ESXi 7.0, Hyper-V, Proxmox"
+              <PresetCombobox
+                label="Sanallaştırma Platformu"
+                presetKey="hypervisors"
+                defaultOptions={DEFAULT_HYPERVISORS}
                 value={formData.hypervisor}
-                onChange={(e) => setFormData({ ...formData, hypervisor: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-purple-500 focus:outline-none"
+                onChange={(val) => setFormData({ ...formData, hypervisor: val })}
+                placeholder="Örn: VMware ESXi 7.0, Hyper-V, Proxmox"
+                colorScheme="purple"
               />
             </div>
             <div>
@@ -549,13 +1074,14 @@ export function VMModal({ isOpen, onClose, onSave, vm = null, customerId, physic
             <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">İşletim Sistemi & Office Lisansları</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Kurulu Windows Sürümü</label>
-                <input
-                  type="text"
-                  placeholder="Örn: Windows Server 2022 Datacenter"
+                <PresetCombobox
+                  label="Kurulu Windows / Sunucu Sürümü"
+                  presetKey="server_os_version"
+                  defaultOptions={DEFAULT_SERVER_OS}
                   value={formData.os_version}
-                  onChange={(e) => setFormData({ ...formData, os_version: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-purple-500 focus:outline-none"
+                  onChange={(val) => setFormData({ ...formData, os_version: val })}
+                  placeholder="Örn: Windows Server 2022 Datacenter"
+                  colorScheme="purple"
                 />
               </div>
               <div>
@@ -572,13 +1098,14 @@ export function VMModal({ isOpen, onClose, onSave, vm = null, customerId, physic
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Kurulu Office Sürümü</label>
-                <input
-                  type="text"
-                  placeholder="Örn: Office 2021 LTSC Standard / M365"
+                <PresetCombobox
+                  label="Kurulu Office Sürümü"
+                  presetKey="pc_office_version"
+                  defaultOptions={DEFAULT_OFFICE_VERSIONS}
                   value={formData.office_version}
-                  onChange={(e) => setFormData({ ...formData, office_version: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-purple-500 focus:outline-none"
+                  onChange={(val) => setFormData({ ...formData, office_version: val })}
+                  placeholder="Örn: Office 2021 LTSC Standard / M365"
+                  colorScheme="purple"
                 />
               </div>
               <div>
@@ -809,13 +1336,14 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Departman</label>
-              <input
-                type="text"
-                placeholder="Örn: Muhasebe"
+              <PresetCombobox
+                label="Departman"
+                presetKey="pc_department"
+                defaultOptions={DEFAULT_DEPARTMENTS}
                 value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                onChange={(val) => setFormData({ ...formData, department: val })}
+                placeholder="Örn: Muhasebe"
+                colorScheme="emerald"
               />
             </div>
           </div>
@@ -823,27 +1351,25 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
           {/* Device Specs */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Cihaz Türü</label>
-              <select
+              <PresetCombobox
+                label="Cihaz Türü"
+                presetKey="pc_device_type"
+                defaultOptions={DEFAULT_DEVICE_TYPES}
                 value={formData.device_type}
-                onChange={(e) => setFormData({ ...formData, device_type: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-              >
-                <option value="Masaüstü">Masaüstü</option>
-                <option value="Laptop">Laptop</option>
-                <option value="All-in-One">All-in-One</option>
-                <option value="Mini PC">Mini PC</option>
-                <option value="Mac">Apple Mac</option>
-              </select>
+                onChange={(val) => setFormData({ ...formData, device_type: val })}
+                placeholder="Örn: Masaüstü, Laptop"
+                colorScheme="emerald"
+              />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Marka</label>
-              <input
-                type="text"
-                placeholder="Örn: Lenovo, Dell, HP"
+              <PresetCombobox
+                label="Marka"
+                presetKey="pc_brand"
+                defaultOptions={DEFAULT_PC_BRANDS}
                 value={formData.brand}
-                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                onChange={(val) => setFormData({ ...formData, brand: val })}
+                placeholder="Örn: Lenovo, Dell, HP"
+                colorScheme="emerald"
               />
             </div>
             <div>
@@ -942,13 +1468,14 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
             <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">İşletim Sistemi & Office Lisans Bilgileri</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Windows Sürümü</label>
-                <input
-                  type="text"
-                  placeholder="Örn: Windows 11 Pro 23H2"
+                <PresetCombobox
+                  label="Windows / İşletim Sistemi"
+                  presetKey="pc_os_version"
+                  defaultOptions={DEFAULT_OS_VERSIONS}
                   value={formData.os_version}
-                  onChange={(e) => setFormData({ ...formData, os_version: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                  onChange={(val) => setFormData({ ...formData, os_version: val })}
+                  placeholder="Örn: Windows 11 Pro"
+                  colorScheme="emerald"
                 />
               </div>
               <div>
@@ -965,13 +1492,14 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Office Sürümü</label>
-                <input
-                  type="text"
-                  placeholder="Örn: Office 2021 Home & Business / M365"
+                <PresetCombobox
+                  label="Office Sürümü"
+                  presetKey="pc_office_version"
+                  defaultOptions={DEFAULT_OFFICE_VERSIONS}
                   value={formData.office_version}
-                  onChange={(e) => setFormData({ ...formData, office_version: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                  onChange={(val) => setFormData({ ...formData, office_version: val })}
+                  placeholder="Örn: Office 2021 Home & Business"
+                  colorScheme="emerald"
                 />
               </div>
               <div>
@@ -1404,13 +1932,14 @@ export function FirewallModal({ isOpen, onClose, onSave, firewall = null, custom
               </datalist>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Marka</label>
-              <input
-                type="text"
-                placeholder="Örn: Fortinet, Sophos, pfSense"
+              <PresetCombobox
+                label="Marka"
+                presetKey="firewall_brand"
+                defaultOptions={DEFAULT_FIREWALL_BRANDS}
                 value={formData.brand}
-                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-rose-500 focus:outline-none"
+                onChange={(val) => setFormData({ ...formData, brand: val })}
+                placeholder="Örn: SonicWall, Fortinet"
+                colorScheme="rose"
               />
             </div>
           </div>
@@ -1651,13 +2180,14 @@ export function BackupModal({ isOpen, onClose, onSave, backup = null, customerId
               </datalist>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Marka</label>
-              <input
-                type="text"
-                placeholder="Örn: Synology, QNAP, TrueNAS"
+              <PresetCombobox
+                label="Marka"
+                presetKey="nas_brand"
+                defaultOptions={DEFAULT_NAS_BRANDS}
                 value={formData.brand}
-                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-500 focus:outline-none"
+                onChange={(val) => setFormData({ ...formData, brand: val })}
+                placeholder="Örn: Synology, QNAP"
+                colorScheme="amber"
               />
             </div>
           </div>
@@ -1738,13 +2268,14 @@ export function BackupModal({ isOpen, onClose, onSave, backup = null, customerId
           {/* Backup Software & Schedule */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-800 pt-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Yedekleme Yazılımı / Yöntemi</label>
-              <input
-                type="text"
-                placeholder="Örn: Veeam Backup & Replication, Active Backup"
+              <PresetCombobox
+                label="Yedekleme Yazılımı / Yöntemi"
+                presetKey="backup_software"
+                defaultOptions={DEFAULT_BACKUP_SOFTWARE}
                 value={formData.backup_software}
-                onChange={(e) => setFormData({ ...formData, backup_software: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-500 focus:outline-none"
+                onChange={(val) => setFormData({ ...formData, backup_software: val })}
+                placeholder="Örn: Veeam Backup & Replication"
+                colorScheme="amber"
               />
             </div>
             <div>

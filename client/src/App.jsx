@@ -816,6 +816,15 @@ export default function App() {
     }
   };
 
+  const handleQuickUpdateMailAccount = async (accountId, patchData) => {
+    try {
+      await api.updateMailAccount(accountId, patchData);
+      await loadCustomerDetails(selectedCustomerId);
+    } catch (err) {
+      alert('Parola güncellenirken hata oluştu: ' + err.message);
+    }
+  };
+
   const handleDeleteMailAccount = (accountId) => {
     setConfirmDialog({
       isOpen: true,
@@ -1778,6 +1787,7 @@ export default function App() {
                       setIsMailAccountModalOpen(true);
                     }}
                     onDeleteAccount={handleDeleteMailAccount}
+                    onQuickUpdateAccount={handleQuickUpdateMailAccount}
                   />
                 )}
               </div>

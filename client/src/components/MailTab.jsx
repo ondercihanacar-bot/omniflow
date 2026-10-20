@@ -4,10 +4,11 @@ import {
   Calendar, Clock, Key, Edit, Trash2, LayoutGrid, Table,
   AlertCircle, ShieldCheck, ShieldAlert, Copy, Eye, EyeOff,
   Plus, Search, Server, Building2, Check, RefreshCw, Sparkles,
-  Inbox, Layers, ArrowUpRight, HelpCircle
+  Inbox, Layers, ArrowUpRight, HelpCircle, X
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import { getDaysRemaining, getLicenseStatus } from '../utils/licenseAlerts';
+import { api } from '../api';
 
 export default function MailTab({
   customer,
@@ -22,7 +23,8 @@ export default function MailTab({
   onDeleteService,
   onAddAccount,
   onEditAccount,
-  onDeleteAccount
+  onDeleteAccount,
+  onQuickUpdateAccount
 }) {
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem('itmanager_view_mode_mail') || 'table';
@@ -34,6 +36,41 @@ export default function MailTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [showAllPasswords, setShowAllPasswords] = useState(false);
+
+  // Quick inline password edit state
+  const [editingPassId, setEditingPassId] = useState(null);
+  const [tempPass, setTempPass] = useState('');
+  const [isSavingPass, setIsSavingPass] = useState(false);
+
+  const startEditPassword = (acc) => {
+    setEditingPassId(acc.id);
+    setTempPass(acc.password || '');
+  };
+
+  const cancelEditPassword = () => {
+    setEditingPassId(null);
+    setTempPass('');
+  };
+
+  const saveInlinePassword = async (acc) => {
+    if (isSavingPass) return;
+    setIsSavingPass(true);
+    try {
+      const updated = { ...acc, password: tempPass };
+      if (onQuickUpdateAccount) {
+        await onQuickUpdateAccount(acc.id, updated);
+      } else {
+        await api.updateMailAccount(acc.id, updated);
+      }
+      setEditingPassId(null);
+      setTempPass('');
+    } catch (err) {
+      console.error('Parola kaydedilemedi', err);
+      alert('Parola kaydedilirken hata: ' + (err.message || 'Bilinmeyen hata'));
+    } finally {
+      setIsSavingPass(false);
+    }
+  };
 
   const togglePasswordVisibility = (id) => {
     setVisiblePasswords(prev => ({
@@ -529,9 +566,45 @@ export default function MailTab({
 
                         {/* 3. Password */}
                         <td className="py-3 px-4 whitespace-nowrap">
-                          {canViewPasswords && acc.password ? (
-                            <div className="flex items-center gap-1.5 font-mono bg-slate-950/80 px-2 py-1 rounded-lg border border-slate-800/80 w-fit">
-                              <span className="text-slate-200 select-all min-w-[80px]">
+                          {editingPassId === acc.id ? (
+                            <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-emerald-500/70 shadow-lg ring-1 ring-emerald-500/30">
+                              <input
+                                type="text"
+                                autoFocus
+                                placeholder="Yeni parola yazın..."
+                                value={tempPass}
+                                onChange={(e) => setTempPass(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    saveInlinePassword(acc);
+                                  } else if (e.key === 'Escape') {
+                                    cancelEditPassword();
+                                  }
+                                }}
+                                className="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-xs text-white font-mono focus:outline-none focus:border-emerald-400 w-36"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => saveInlinePassword(acc)}
+                                disabled={isSavingPass}
+                                className="p-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded text-xs transition-colors cursor-pointer"
+                                title="Kaydet (Enter)"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelEditPassword}
+                                className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded text-xs transition-colors cursor-pointer"
+                                title="Vazgeç (Esc)"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : canViewPasswords && acc.password ? (
+                            <div className="flex items-center gap-1.5 font-mono bg-slate-950/80 px-2 py-1 rounded-lg border border-slate-800/80 w-fit group">
+                              <span className="text-slate-200 select-all min-w-[70px]">
                                 {isPassVisible ? acc.password : '••••••••••'}
                               </span>
                               <button
@@ -543,11 +616,34 @@ export default function MailTab({
                                 {isPassVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                               </button>
                               <CopyButton text={acc.password} title="Parolayı Kopyala" />
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => startEditPassword(acc)}
+                                  className="text-slate-500 hover:text-emerald-400 p-0.5 cursor-pointer ml-0.5 transition-colors"
+                                  title="Parolayı Düzenle"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           ) : (
-                            <span className="text-slate-500 italic text-[11px]">
-                              {acc.password ? 'Yetki yok' : 'Şifresiz / Shared'}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 italic text-[11px]">
+                                {acc.password ? 'Yetki yok' : 'Şifresiz'}
+                              </span>
+                              {canEdit && canViewPasswords && (
+                                <button
+                                  type="button"
+                                  onClick={() => startEditPassword(acc)}
+                                  className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 cursor-pointer"
+                                  title="Bu kullanıcıya şifre yaz"
+                                >
+                                  <Plus className="w-3 h-3 stroke-[2.5]" />
+                                  <span>Şifre Yaz</span>
+                                </button>
+                              )}
+                            </div>
                           )}
                         </td>
 
@@ -697,25 +793,87 @@ export default function MailTab({
                         <CopyButton text={acc.email_address} />
                       </div>
 
-                      {canViewPasswords && acc.password && (
-                        <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-900">
-                          <div className="flex items-center gap-1.5 font-mono text-slate-300">
-                            <Lock className="w-3 h-3 text-slate-500 shrink-0" />
-                            <span className="select-all">
-                              {isPassVisible ? acc.password : '••••••••••'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => togglePasswordVisibility(acc.id)}
-                              className="text-slate-400 hover:text-slate-200 p-0.5 cursor-pointer"
-                              title={isPassVisible ? 'Gizle' : 'Göster'}
-                            >
-                              {isPassVisible ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                            </button>
-                            <CopyButton text={acc.password} />
-                          </div>
+                      {canViewPasswords && (
+                        <div className="pt-1.5 border-t border-slate-900">
+                          {editingPassId === acc.id ? (
+                            <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-emerald-500/70 shadow-lg ring-1 ring-emerald-500/30">
+                              <input
+                                type="text"
+                                autoFocus
+                                placeholder="Yeni parola yazın..."
+                                value={tempPass}
+                                onChange={(e) => setTempPass(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    saveInlinePassword(acc);
+                                  } else if (e.key === 'Escape') {
+                                    cancelEditPassword();
+                                  }
+                                }}
+                                className="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-xs text-white font-mono focus:outline-none focus:border-emerald-400 w-full"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => saveInlinePassword(acc)}
+                                disabled={isSavingPass}
+                                className="p-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded text-xs transition-colors cursor-pointer shrink-0"
+                                title="Kaydet"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelEditPassword}
+                                className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded text-xs transition-colors cursor-pointer shrink-0"
+                                title="Vazgeç"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : acc.password ? (
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-1.5 font-mono text-slate-300">
+                                <Lock className="w-3 h-3 text-slate-500 shrink-0" />
+                                <span className="select-all">
+                                  {isPassVisible ? acc.password : '••••••••••'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => togglePasswordVisibility(acc.id)}
+                                  className="text-slate-400 hover:text-slate-200 p-0.5 cursor-pointer"
+                                  title={isPassVisible ? 'Gizle' : 'Göster'}
+                                >
+                                  {isPassVisible ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                </button>
+                                <CopyButton text={acc.password} />
+                                {canEdit && (
+                                  <button
+                                    type="button"
+                                    onClick={() => startEditPassword(acc)}
+                                    className="text-slate-400 hover:text-emerald-400 p-0.5 cursor-pointer transition-colors"
+                                    title="Parolayı Düzenle"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ) : canEdit ? (
+                            <div className="flex items-center justify-between text-xs text-slate-500">
+                              <span className="italic text-[11px]">Şifresiz</span>
+                              <button
+                                type="button"
+                                onClick={() => startEditPassword(acc)}
+                                className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 cursor-pointer"
+                              >
+                                <Plus className="w-3 h-3" />
+                                <span>Şifre Yaz</span>
+                              </button>
+                            </div>
+                          ) : null}
                         </div>
                       )}
                     </div>
