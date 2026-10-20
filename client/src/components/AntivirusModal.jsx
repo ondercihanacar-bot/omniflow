@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-  X, Shield, Globe, User, Lock, Users, Calendar, Clock,
-  Key, FileText, Check, AlertCircle, Eye, EyeOff, Building2,
-  ExternalLink, Zap, Copy, Sparkles
+  ExternalLink, X, Shield, Globe, User, Lock, Users, Calendar, Clock,
+  Key, FileText, Check, AlertCircle, Eye, EyeOff, Building2
 } from 'lucide-react';
 
 const COMMON_BRANDS = [
@@ -53,8 +52,6 @@ export default function AntivirusModal({
 
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [autoLoginToast, setAutoLoginToast] = useState(null);
-  const [copiedField, setCopiedField] = useState(null);
 
   useEffect(() => {
     if (antivirus) {
@@ -82,62 +79,7 @@ export default function AntivirusModal({
     }
     setError('');
     setShowPassword(false);
-    setAutoLoginToast(null);
-    setCopiedField(null);
   }, [antivirus, customerId, isOpen, branches]);
-
-  const bookmarkletCode = `javascript:(function(){var u=${JSON.stringify(formData.username || '')};var p=${JSON.stringify(formData.password || '')};var e=document.querySelector('input[type="email"],input[name*="mail" i],input[name*="user" i],input[id*="mail" i],input[id*="user" i],input[name="Email"],input[name="username"],input[type="text"]');var pw=document.querySelector('input[type="password"]');if(e&&u){e.value=u;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));}if(pw&&p){pw.value=p;pw.dispatchEvent(new Event('input',{bubbles:true}));pw.dispatchEvent(new Event('change',{bubbles:true}));}var b=document.querySelector('button[type="submit"],input[type="submit"],button[data-testid*="submit"],button.btn-primary');if(b)b.focus();})();`;
-
-  const handleOpenPortalWithAutoFill = async () => {
-    let url = formData.portal_url?.trim();
-    if (!url) {
-      url = DEFAULT_PORTALS[formData.brand] || 'https://cloud.kaspersky.com';
-    }
-    if (!/^https?:\/\//i.test(url)) {
-      url = 'https://' + url;
-    }
-
-    // Copy password to clipboard as immediate fallback
-    try {
-      if (formData.password) {
-        await navigator.clipboard.writeText(formData.password);
-      } else if (formData.username) {
-        await navigator.clipboard.writeText(formData.username);
-      }
-    } catch (err) {}
-
-    // Call desktop automation backend first (launches Chrome, types email/password, clicks Giriş yap)
-    try {
-      const res = await fetch('/api/antivirus/browser-autologin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url,
-          username: formData.username,
-          password: formData.password
-        })
-      });
-      const data = await res.json();
-      if (data.success && data.mode === 'cdp_desktop') {
-        setAutoLoginToast({
-          type: 'success',
-          message: '🚀 Google Chrome otomatik açıldı! E-posta adresiniz ve şifreniz yazıldı, "Giriş yap" butonuna tıklandı.',
-          copied: 'password'
-        });
-        return;
-      }
-    } catch (e) {
-      console.warn('Desktop auto-login fallback to client:', e);
-    }
-
-    // Client-side fallback: open new tab
-    setAutoLoginToast({
-      type: 'success',
-      message: 'Yönetim paneli yeni sekmede açıldı! Giriş parolanız panoya kopyalandı. Sayfada parola alanına doğrudan Ctrl + V yapıştırabilirsiniz.',
-      copied: formData.password ? 'password' : 'username'
-    });
-    window.open(url, '_blank');
-  };
 
   if (!isOpen) return null;
 
@@ -249,132 +191,19 @@ export default function AntivirusModal({
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Yönetim Paneli Web Adresi (URL)</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={handleOpenPortalWithAutoFill}
-                  className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-950/80 px-2 py-0.5 rounded-lg border border-emerald-700/60 hover:border-emerald-500 transition-all cursor-pointer shadow-sm active:scale-95"
-                  title="Web sayfasını açar ve e-posta / şifreyi otomatik hazırlar"
-                >
-                  <Zap className="w-3 h-3 text-amber-400" />
-                  <span>Otomatik Girişle Aç</span>
-                </button>
-              </div>
-
-              <div className="relative flex items-center">
-                <input
-                  type="url"
-                  value={formData.portal_url}
-                  onChange={(e) => setFormData({ ...formData, portal_url: e.target.value })}
-                  placeholder="https://cloud.kaspersky.com"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-3 pr-28 py-2 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
-                />
-                <button
-                  type="button"
-                  onClick={handleOpenPortalWithAutoFill}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 shadow transition-all cursor-pointer active:scale-95"
-                  title="Paneli yeni sekmede aç ve parolayı otomatik panoya kopyala"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  <span>Giriş Yap &amp; Aç</span>
-                </button>
-              </div>
-
-              {/* Quick direct SSO Auth URL helper for Kaspersky */}
-              {formData.brand === 'Kaspersky' && (
-                <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400">
-                  <span className="truncate">cloud.kaspersky.com</span>
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({
-                      ...prev,
-                      portal_url: 'https://auth.eu.uis.kaspersky.com/connect/authorize?client_id=B2BCP&code_challenge=xi45KJEp8qZdGXh1m19FZrzFR0rC40WZhylv33Ku8lQ&code_challenge_method=S256&redirect_uri=https%3A%2F%2Fuis.iam.hw.services.cloud.kaspersky.com%2Fuis%2Fv1%2Fauth&response_type=code&scope=openid+email+profile&state=wLBfiMHcF8Xc-MJ9N4rf3A'
-                    }))}
-                    className="text-cyan-400 hover:underline cursor-pointer flex items-center gap-0.5 ml-1 shrink-0"
-                    title="Doğrudan Kaspersky Auth SSO Giriş Sayfası Linkini Yükle"
-                  >
-                    <Sparkles className="w-2.5 h-2.5" />
-                    <span>Doğrudan SSO Giriş Linki</span>
-                  </button>
-                </div>
-              )}
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Yönetim Paneli Web Adresi (URL)</span>
+              </label>
+              <input
+                type="url"
+                value={formData.portal_url}
+                onChange={(e) => setFormData({ ...formData, portal_url: e.target.value })}
+                placeholder="https://cloud.kaspersky.com"
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
+              />
             </div>
           </div>
-
-          {/* Quick-Login Assistant Banner */}
-          {autoLoginToast && (
-            <div className="p-3.5 bg-gradient-to-r from-emerald-950/90 to-slate-900 border border-emerald-500/50 rounded-xl space-y-2 shadow-xl animate-fadeIn">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-emerald-300">
-                  <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-                  <span>🚀 Yönetim Paneli Açıldı &amp; Giriş Bilgileri Hazırlandı!</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAutoLoginToast(null)}
-                  className="text-slate-400 hover:text-white text-xs cursor-pointer p-0.5"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <p className="text-[11px] text-slate-300 leading-relaxed">
-                {autoLoginToast.message}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-emerald-800/40 text-xs">
-                {formData.username && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(formData.username);
-                      setCopiedField('username');
-                      setTimeout(() => setCopiedField(null), 2000);
-                    }}
-                    className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg text-[10px] font-mono flex items-center gap-1 cursor-pointer transition-colors"
-                  >
-                    <Copy className="w-3 h-3 text-cyan-400" />
-                    <span>{copiedField === 'username' ? '✓ E-Posta Kopyalandı' : `E-Postayı Kopyala: ${formData.username}`}</span>
-                  </button>
-                )}
-
-                {formData.password && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(formData.password);
-                      setCopiedField('password');
-                      setTimeout(() => setCopiedField(null), 2000);
-                    }}
-                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] font-mono flex items-center gap-1 cursor-pointer transition-colors shadow"
-                  >
-                    <Key className="w-3 h-3" />
-                    <span>{copiedField === 'password' ? '✓ Parola Kopyalandı' : 'Parolayı Kopyala'}</span>
-                  </button>
-                )}
-
-                {/* 1-Click Draggable Bookmarklet for Instant Auto-Fill */}
-                <a
-                  href={bookmarkletCode}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigator.clipboard.writeText(bookmarkletCode);
-                    setCopiedField('bookmarklet');
-                    setTimeout(() => setCopiedField(null), 2500);
-                  }}
-                  title="Bu butona tıklayarak doldurma kodunu kopyalayabilir veya tarayıcınızın Yer İmleri çubuğuna sürükleyip bırakabilirsiniz. Açılan sayfada tek tıkla e-posta ve şifrenizi otomatik doldurur!"
-                  className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
-                >
-                  <Zap className="w-3 h-3 text-amber-400" />
-                  <span>{copiedField === 'bookmarklet' ? '✓ Otomatik Doldurma Kodu Kopyalandı' : '⭐ OmniFill: Tek Tıkla Doldurucu'}</span>
-                </a>
-              </div>
-            </div>
-          )}
 
           {/* Row 3: Portal Credentials (Username & Password) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-950/50 p-3.5 rounded-xl border border-slate-800">
