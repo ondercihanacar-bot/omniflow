@@ -1788,6 +1788,7 @@ export default function App() {
                     }}
                     onDeleteAccount={handleDeleteMailAccount}
                     onQuickUpdateAccount={handleQuickUpdateMailAccount}
+                    onReloadCustomer={() => loadCustomerDetails(selectedCustomerId)}
                   />
                 )}
               </div>

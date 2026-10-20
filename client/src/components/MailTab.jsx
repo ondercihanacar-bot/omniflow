@@ -9,6 +9,7 @@ import {
 import CopyButton from './CopyButton';
 import { getDaysRemaining, getLicenseStatus } from '../utils/licenseAlerts';
 import { api } from '../api';
+import MailBulkImportModal from './MailBulkImportModal';
 
 export default function MailTab({
   customer,
@@ -24,7 +25,8 @@ export default function MailTab({
   onAddAccount,
   onEditAccount,
   onDeleteAccount,
-  onQuickUpdateAccount
+  onQuickUpdateAccount,
+  onReloadCustomer
 }) {
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem('itmanager_view_mode_mail') || 'table';
@@ -36,6 +38,7 @@ export default function MailTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [showAllPasswords, setShowAllPasswords] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Quick inline password edit state
   const [editingPassId, setEditingPassId] = useState(null);
@@ -204,6 +207,15 @@ export default function MailTab({
               >
                 <Server className="w-3.5 h-3.5 text-blue-400" />
                 <span>Panel / Servis Ekle</span>
+              </button>
+
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="px-3.5 py-2 bg-gradient-to-r from-sky-600/30 to-blue-600/30 hover:from-sky-600/40 hover:to-blue-600/40 text-sky-200 text-xs font-bold rounded-xl border border-sky-500/40 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Microsoft 365 / Exchange Kullanıcılarını API ile Çek veya Toplu İçe Aktar"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                <span>M365 / Toplu Kullanıcı Çek</span>
               </button>
 
               <button
@@ -497,13 +509,22 @@ export default function MailTab({
               Filtrelerinizi temizleyin veya yeni bir kullanıcı e-posta hesabı ve parolası ekleyin.
             </p>
             {canEdit && (
-              <button
-                onClick={onAddAccount}
-                className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>İlk E-Posta Hesabını Ekle</span>
-              </button>
+              <div className="mt-4 flex items-center justify-center gap-2.5 flex-wrap">
+                <button
+                  onClick={onAddAccount}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>İlk E-Posta Hesabını Ekle</span>
+                </button>
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl shadow transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Microsoft 365 / Toplu İçe Aktar</span>
+                </button>
+              </div>
             )}
           </div>
         ) : viewMode === 'table' ? (
@@ -907,6 +928,18 @@ export default function MailTab({
           </div>
         )}
       </div>
+
+      {/* Microsoft 365 & Bulk Mail Account Import Modal */}
+      <MailBulkImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => {
+          if (onReloadCustomer) onReloadCustomer();
+        }}
+        customerId={customer?.id}
+        mailServices={mailServices}
+        branches={branches}
+      />
     </div>
   );
 }

@@ -612,6 +612,32 @@ export const api = {
     return res.json();
   },
 
+  createMailAccountsBulk: async (data) => {
+    const res = await authFetch(`${API_BASE}/mail-accounts/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Toplu e-posta hesapları eklenemedi');
+    }
+    return res.json();
+  },
+
+  fetchM365Users: async (credentials) => {
+    const res = await authFetch(`${API_BASE}/m365/fetch-users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Microsoft 365 kullanıcıları çekilemedi');
+    }
+    return res.json();
+  },
+
   // All License Alerts (Firewalls, Antivirus & Mail/Exchange)
   getAllLicenseAlerts: async () => {
     const res = await authFetch(`${API_BASE}/alerts/all-licenses`);

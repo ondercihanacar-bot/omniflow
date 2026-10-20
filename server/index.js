@@ -1752,7 +1752,8 @@ app.post('/api/mail-services', (req, res) => {
       customer_id, service_name, service_type, domain_name, admin_panel_url,
       admin_username, admin_password, portal_notes, is_exchange_or_subscription,
       license_type, license_count, license_start_date, license_expiry, reseller_partner,
-      incoming_server, outgoing_server, dns_records_status, notes
+      incoming_server, outgoing_server, dns_records_status, notes,
+      m365_tenant_id, m365_client_id, m365_client_secret
     } = req.body;
 
     if (!customer_id || !service_name) {
@@ -1764,8 +1765,9 @@ app.post('/api/mail-services', (req, res) => {
         customer_id, service_name, service_type, domain_name, admin_panel_url,
         admin_username, admin_password, portal_notes, is_exchange_or_subscription,
         license_type, license_count, license_start_date, license_expiry, reseller_partner,
-        incoming_server, outgoing_server, dns_records_status, notes, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        incoming_server, outgoing_server, dns_records_status, notes,
+        m365_tenant_id, m365_client_id, m365_client_secret, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
 
     const result = stmt.run(
@@ -1774,7 +1776,8 @@ app.post('/api/mail-services', (req, res) => {
       is_exchange_or_subscription !== undefined ? Number(is_exchange_or_subscription) : 1,
       license_type || '', Number(license_count) || 1, license_start_date || '',
       license_expiry || '', reseller_partner || '', incoming_server || '', outgoing_server || '',
-      dns_records_status || '', notes || ''
+      dns_records_status || '', notes || '',
+      m365_tenant_id || '', m365_client_id || '', m365_client_secret || ''
     );
 
     const created = db.prepare('SELECT * FROM mail_services WHERE id = ?').get(result.lastInsertRowid);
@@ -1798,7 +1801,8 @@ app.put('/api/mail-services/:id', (req, res) => {
         service_name = ?, service_type = ?, domain_name = ?, admin_panel_url = ?,
         admin_username = ?, admin_password = ?, portal_notes = ?, is_exchange_or_subscription = ?,
         license_type = ?, license_count = ?, license_start_date = ?, license_expiry = ?, reseller_partner = ?,
-        incoming_server = ?, outgoing_server = ?, dns_records_status = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+        incoming_server = ?, outgoing_server = ?, dns_records_status = ?, notes = ?,
+        m365_tenant_id = ?, m365_client_id = ?, m365_client_secret = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `);
 
@@ -1808,7 +1812,8 @@ app.put('/api/mail-services/:id', (req, res) => {
       is_exchange_or_subscription !== undefined ? Number(is_exchange_or_subscription) : 1,
       license_type || '', Number(license_count) || 1, license_start_date || '',
       license_expiry || '', reseller_partner || '', incoming_server || '', outgoing_server || '',
-      dns_records_status || '', notes || '', req.params.id
+      dns_records_status || '', notes || '',
+      m365_tenant_id || '', m365_client_id || '', m365_client_secret || '', req.params.id
     );
 
     const updated = db.prepare('SELECT * FROM mail_services WHERE id = ?').get(req.params.id);
@@ -1858,6 +1863,182 @@ app.get('/api/mail-accounts', (req, res) => {
       `).all();
     }
     res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+// Bulk Insert / Update Mail Accounts (from Microsoft 365 or Clipboard CSV)
+app.post('/api/mail-accounts/bulk', (req, res) => {
+  try {
+    const { customer_id, mail_service_id, accounts } = req.body;
+    if (!customer_id || !Array.isArray(accounts) || accounts.length === 0) {
+      return res.status(400).json({ error: 'Müşteri ve en az bir e-posta hesabı gereklidir' });
+    }
+
+    const checkStmt = db.prepare('SELECT id, password FROM mail_accounts WHERE customer_id = ? AND email_address = ?');
+    const insertStmt = db.prepare(`
+      INSERT INTO mail_accounts (
+        customer_id, mail_service_id, full_name, email_address, password,
+        department, branch_name, mailbox_type, license_type, quota_limit,
+        phone_or_recovery, is_mfa_active, status, notes, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `);
+    const updateStmt = db.prepare(`
+      UPDATE mail_accounts SET
+        mail_service_id = COALESCE(?, mail_service_id),
+        full_name = ?,
+        department = ?,
+        branch_name = ?,
+        mailbox_type = ?,
+        license_type = ?,
+        quota_limit = ?,
+        phone_or_recovery = ?,
+        status = ?,
+        password = CASE WHEN ? != '' THEN ? ELSE password END,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+
+    let createdCount = 0;
+    let updatedCount = 0;
+
+    db.exec('BEGIN');
+    try {
+      for (const item of accounts) {
+        const email = (item.email_address || '').trim().toLowerCase();
+        const fullName = (item.full_name || email.split('@')[0] || '').trim();
+        if (!email || !email.includes('@')) continue;
+
+        const existing = checkStmt.get(customer_id, email);
+        if (existing) {
+          updateStmt.run(
+            mail_service_id ? Number(mail_service_id) : null,
+            fullName,
+            item.department || 'Genel',
+            item.branch_name || 'Merkez Ofis',
+            item.mailbox_type || 'Kullanıcı',
+            item.license_type || '',
+            item.quota_limit || '50 GB',
+            item.phone_or_recovery || '',
+            item.status || 'Aktif',
+            item.password || '',
+            item.password || '',
+            existing.id
+          );
+          updatedCount++;
+        } else {
+          insertStmt.run(
+            customer_id,
+            mail_service_id ? Number(mail_service_id) : null,
+            fullName,
+            email,
+            item.password || '',
+            item.department || 'Genel',
+            item.branch_name || 'Merkez Ofis',
+            item.mailbox_type || 'Kullanıcı',
+            item.license_type || '',
+            item.quota_limit || '50 GB',
+            item.phone_or_recovery || '',
+            item.is_mfa_active !== undefined ? (item.is_mfa_active ? 1 : 0) : 1,
+            item.status || 'Aktif',
+            item.notes || ''
+          );
+          createdCount++;
+        }
+      }
+      db.exec('COMMIT');
+    } catch (txErr) {
+      db.exec('ROLLBACK');
+      throw txErr;
+    }
+
+    res.json({
+      success: true,
+      total: accounts.length,
+      createdCount,
+      updatedCount,
+      message: `${createdCount} yeni kullanıcı eklendi, ${updatedCount} kullanıcı güncellendi.`
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Microsoft Graph API: Fetch All Users & Mailboxes
+app.post('/api/m365/fetch-users', async (req, res) => {
+  try {
+    const { tenant_id, client_id, client_secret } = req.body;
+    if (!tenant_id || !client_id || !client_secret) {
+      return res.status(400).json({
+        error: 'Microsoft 365 bağlantısı için Tenant ID, Client ID ve Client Secret alanları zorunludur.'
+      });
+    }
+
+    // 1. Get OAuth2 Token from Microsoft Entra ID
+    const tokenUrl = `https://login.microsoftonline.com/${encodeURIComponent(tenant_id.trim())}/oauth2/v2.0/token`;
+    const tokenParams = new URLSearchParams({
+      client_id: client_id.trim(),
+      scope: 'https://graph.microsoft.com/.default',
+      client_secret: client_secret.trim(),
+      grant_type: 'client_credentials'
+    });
+
+    const tokenRes = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: tokenParams.toString()
+    });
+
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok || !tokenData.access_token) {
+      const desc = tokenData.error_description || tokenData.error || 'Kimlik doğrulama başarısız';
+      return res.status(401).json({
+        error: `Microsoft 365 Yetkilendirme Başarısız: ${desc}. Lütfen Tenant ID, Client ID veya Client Secret değerini kontrol edin.`
+      });
+    }
+
+    // 2. Fetch Users from Microsoft Graph API
+    const graphUrl = 'https://graph.microsoft.com/v1.0/users?$select=id,displayName,mail,userPrincipalName,department,jobTitle,mobilePhone,businessPhones,assignedLicenses,accountEnabled&$top=999';
+    const graphRes = await fetch(graphUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const graphData = await graphRes.json();
+    if (!graphRes.ok || !graphData.value) {
+      const msg = graphData.error?.message || 'Kullanıcı listesi alınamadı';
+      return res.status(graphRes.status).json({
+        error: `Microsoft Graph Hatası: ${msg}. Azure App Registration üzerinde 'User.Read.All' izni verildiğinden ve 'Grant admin consent' yapıldığından emin olun.`
+      });
+    }
+
+    // 3. Format and normalize users for OMNIFlow
+    const users = graphData.value.map(u => {
+      const email = u.mail || u.userPrincipalName || '';
+      const phones = [u.mobilePhone, ...(u.businessPhones || [])].filter(Boolean);
+      return {
+        id: u.id,
+        full_name: u.displayName || email.split('@')[0],
+        email_address: email.toLowerCase(),
+        department: u.department || 'Genel',
+        job_title: u.jobTitle || '',
+        phone_or_recovery: phones[0] || '',
+        status: u.accountEnabled !== false ? 'Aktif' : 'Pasif',
+        is_mfa_active: 1,
+        license_count: u.assignedLicenses?.length || 0
+      };
+    }).filter(u => u.email_address && u.email_address.includes('@'));
+
+    res.json({
+      success: true,
+      count: users.length,
+      users
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

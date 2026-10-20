@@ -341,6 +341,11 @@ function runMigrations() {
   tryAddCol('user_computers', 'local_admin_user TEXT');
   tryAddCol('user_computers', 'local_admin_password TEXT');
 
+  // Microsoft 365 / Exchange API credentials
+  tryAddCol('mail_services', 'm365_tenant_id TEXT');
+  tryAddCol('mail_services', 'm365_client_id TEXT');
+  tryAddCol('mail_services', 'm365_client_secret TEXT');
+
   // Ensure Wi-Fi tables exist on existing DBs
   db.exec(`
     CREATE TABLE IF NOT EXISTS wifi_controllers (
