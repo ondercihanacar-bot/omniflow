@@ -1650,6 +1650,8 @@ export default function App() {
                     customer={customerData}
                     computers={customerData.user_computers || []}
                     branches={customerBranches}
+                    mailAccounts={customerData.mail_accounts || []}
+                    currentUser={currentUser}
                     canEdit={checkPermission(currentUser, 'edit')}
                     canDelete={checkPermission(currentUser, 'delete')}
                     onAdd={() => {

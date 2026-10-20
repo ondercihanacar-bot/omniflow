@@ -2,16 +2,21 @@ import React, { useState } from 'react';
 import {
   Laptop, Plus, Search, Edit2, Trash2, Key, Wifi, Network,
   User, Monitor, ShieldCheck, Building2, Filter, Table, LayoutGrid, Shield, Printer,
-  Zap
+  Zap, FileText
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
 import ComputerCollectorModal from './ComputerCollectorModal';
+import HandoverModal from './HandoverModal';
 
 export default function UserComputersTab({
   customer,
   computers = [],
   branches = [],
+  mailAccounts = [],
+  currentUser = null,
+  canEdit = true,
+  canDelete = true,
   onAdd,
   onEdit,
   onDelete,
@@ -25,6 +30,13 @@ export default function UserComputersTab({
     return localStorage.getItem('pc_view_mode') || 'table';
   });
   const [isCollectorModalOpen, setIsCollectorModalOpen] = useState(false);
+  const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
+  const [handoverSelectedPC, setHandoverSelectedPC] = useState(null);
+
+  const handleOpenHandover = (pc = null) => {
+    setHandoverSelectedPC(pc || (computers.length > 0 ? computers[0] : null));
+    setIsHandoverModalOpen(true);
+  };
 
   const handleSetViewMode = (mode) => {
     setViewMode(mode);
@@ -142,6 +154,15 @@ export default function UserComputersTab({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => handleOpenHandover(computers.length > 0 ? computers[0] : null)}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-bold rounded-lg border border-emerald-500/40 transition-colors cursor-pointer shrink-0 shadow-sm"
+            title="Seçili müşteride personele ait resmi Zimmet & Teslim Tutanağı oluştur (PDF / Yazdır)"
+          >
+            <FileText className="w-3.5 h-3.5 text-emerald-400" />
+            <span>📄 Zimmet Tutanağı</span>
+          </button>
+
           {onOpenReport && (
             <button
               onClick={onOpenReport}
@@ -225,6 +246,13 @@ export default function UserComputersTab({
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => handleOpenHandover(c)}
+                    title="Bu bilgisayar ve personel için resmi Zimmet Tutanağı oluştur"
+                    className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                  </button>
                   <button
                     onClick={() => onEdit(c)}
                     title="Düzenle"
@@ -549,6 +577,13 @@ export default function UserComputersTab({
                     <td className="py-3 px-3.5 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
+                          onClick={() => handleOpenHandover(c)}
+                          title="Bu bilgisayar ve personel için resmi Zimmet Tutanağı oluştur"
+                          className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <FileText className="w-4 h-4 text-emerald-400" />
+                        </button>
+                        <button
                           onClick={() => onEdit(c)}
                           title="Düzenle"
                           className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
@@ -581,6 +616,17 @@ export default function UserComputersTab({
         }}
         customer={customer}
         branches={branches}
+      />
+
+      {/* Personel Zimmet & Teslim Tutanağı Modalı */}
+      <HandoverModal
+        isOpen={isHandoverModalOpen}
+        onClose={() => setIsHandoverModalOpen(false)}
+        customer={customer}
+        selectedComputer={handoverSelectedPC}
+        computers={computers}
+        mailAccounts={mailAccounts}
+        currentUser={currentUser}
       />
     </div>
   );
