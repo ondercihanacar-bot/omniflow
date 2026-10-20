@@ -7,6 +7,7 @@ const totp = require('./totp');
 const security = require('./security');
 const aiService = require('./aiService');
 const licenseService = require('./licenseService');
+const agentCollector = require('./agentCollector');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -65,7 +66,7 @@ app.use('/api', (req, res, next) => {
     '/license/sync'
   ];
 
-  if (publicPaths.some(p => req.path === p)) {
+  if (publicPaths.some(p => req.path === p) || req.path.startsWith('/agent/')) {
     return next();
   }
 
@@ -1367,6 +1368,96 @@ app.delete('/api/virtual-machines/:id', (req, res) => {
     res.json({ success: true, message: 'Sanal makine silindi' });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+
+// ==========================================
+// POWERSHELL HARDWARE & LICENSE COLLECTOR AGENT APIS
+// ==========================================
+
+// Serve dynamic PowerShell script locked to customer
+app.get('/api/agent/collector.ps1', (req, res) => {
+  try {
+    const { c: customerId, b: branchName } = req.query;
+    if (!customerId) {
+      return res.status(400).send('# Hata: Müşteri parametresi (c) zorunludur.');
+    }
+    const customer = db.prepare('SELECT id, name FROM customers WHERE id = ?').get(customerId);
+    if (!customer) {
+      return res.status(404).send(`# Hata: Müşteri bulunamadı (ID: ${customerId})`);
+    }
+
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.get('host') || 'localhost:5000';
+    const serverUrl = `${proto}://${host}`;
+
+    const script = agentCollector.generateCollectorScript({
+      customerId: customer.id,
+      customerName: customer.name,
+      branchName: branchName || 'Merkez Ofis',
+      serverUrl
+    });
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.send(script);
+  } catch (err) {
+    res.status(500).send(`# Sunucu Hatası: ${err.message}`);
+  }
+});
+
+// Downloadable standalone .bat or .ps1 runner file
+app.get('/api/agent/download/:customerId', (req, res) => {
+  try {
+    const customerId = req.params.customerId;
+    const branchName = req.query.b || 'Merkez Ofis';
+    const format = req.query.format || 'bat';
+
+    const customer = db.prepare('SELECT id, name FROM customers WHERE id = ?').get(customerId);
+    if (!customer) {
+      return res.status(404).send('Müşteri bulunamadı');
+    }
+
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.get('host') || 'localhost:5000';
+    const serverUrl = `${proto}://${host}`;
+
+    const safeName = (customer.name || 'Musteri').replace(/[^a-zA-Z0-9_\u00C0-\u017F]/g, '_');
+
+    if (format === 'ps1') {
+      const script = agentCollector.generateCollectorScript({
+        customerId: customer.id,
+        customerName: customer.name,
+        branchName,
+        serverUrl
+      });
+      res.setHeader('Content-Disposition', `attachment; filename="OMNIFlow_${safeName}_Toplayici.ps1"`);
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      return res.send(script);
+    } else {
+      const bat = agentCollector.generateCollectorBat({
+        customerId: customer.id,
+        customerName: customer.name,
+        branchName,
+        serverUrl
+      });
+      res.setHeader('Content-Disposition', `attachment; filename="OMNIFlow_${safeName}_Toplayici.bat"`);
+      res.setHeader('Content-Type', 'application/x-bat; charset=utf-8');
+      return res.send(bat);
+    }
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// Register Computer from PowerShell Agent
+app.post('/api/agent/register-computer', (req, res) => {
+  try {
+    const result = agentCollector.handleRegisterComputer(db, req.body);
+    res.json(result);
+  } catch (err) {
+    console.error('Agent register computer error:', err.message);
+    res.status(400).json({ success: false, error: err.message });
   }
 });
 

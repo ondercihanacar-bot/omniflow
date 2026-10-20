@@ -1,18 +1,30 @@
 import React, { useState } from 'react';
 import {
   Laptop, Plus, Search, Edit2, Trash2, Key, Wifi, Network,
-  User, Monitor, ShieldCheck, Building2, Filter, Table, LayoutGrid, Shield, Printer
+  User, Monitor, ShieldCheck, Building2, Filter, Table, LayoutGrid, Shield, Printer,
+  Zap
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
+import ComputerCollectorModal from './ComputerCollectorModal';
 
-export default function UserComputersTab({ computers = [], branches = [], onAdd, onEdit, onDelete, onOpenReport }) {
+export default function UserComputersTab({
+  customer,
+  computers = [],
+  branches = [],
+  onAdd,
+  onEdit,
+  onDelete,
+  onOpenReport,
+  onReloadCustomer
+}) {
   const [search, setSearch] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('ALL');
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem('pc_view_mode') || 'table';
   });
+  const [isCollectorModalOpen, setIsCollectorModalOpen] = useState(false);
 
   const handleSetViewMode = (mode) => {
     setViewMode(mode);
@@ -142,6 +154,15 @@ export default function UserComputersTab({ computers = [], branches = [], onAdd,
           )}
 
           <button
+            onClick={() => setIsCollectorModalOpen(true)}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-amber-600/30 to-emerald-600/30 hover:from-amber-600/40 hover:to-emerald-600/40 text-amber-200 text-xs font-bold rounded-lg border border-amber-500/40 transition-colors cursor-pointer shrink-0 shadow-sm"
+            title="PowerShell ile bu bilgisayarın tüm donanım ve lisansını tek tıkla çekin"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span>⚡ Otomatik PC Toplayıcı</span>
+          </button>
+
+          <button
             onClick={onAdd}
             className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer shrink-0"
           >
@@ -153,11 +174,27 @@ export default function UserComputersTab({ computers = [], branches = [], onAdd,
 
       {/* CONTENT */}
       {filtered.length === 0 ? (
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-12 text-center text-slate-500 shadow-sm">
+        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-12 text-center text-slate-500 shadow-sm space-y-3">
           <Laptop className="w-9 h-9 mx-auto text-slate-600 mb-2" />
           <p className="text-sm font-medium text-slate-400">
             {search ? 'Aramanıza uygun bilgisayar bulunamadı.' : 'Henüz bu müşteriye ait kullanıcı bilgisayarı eklenmemiş.'}
           </p>
+          <div className="flex items-center justify-center gap-2 pt-2">
+            <button
+              onClick={() => setIsCollectorModalOpen(true)}
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white text-xs font-bold rounded-lg shadow-sm transition-colors cursor-pointer"
+            >
+              <Zap className="w-4 h-4" />
+              <span>⚡ PowerShell ile Otomatik Topla</span>
+            </button>
+            <button
+              onClick={onAdd}
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition-colors cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Elle Ekle</span>
+            </button>
+          </div>
         </div>
       ) : viewMode === 'cards' ? (
         /* ================= PC CARD VIEW (Zero Horizontal Scroll) ================= */
@@ -534,6 +571,17 @@ export default function UserComputersTab({ computers = [], branches = [], onAdd,
           </div>
         </div>
       )}
+
+      {/* PowerShell Hardware & License Collector Modal */}
+      <ComputerCollectorModal
+        isOpen={isCollectorModalOpen}
+        onClose={() => setIsCollectorModalOpen(false)}
+        onSuccess={() => {
+          if (onReloadCustomer) onReloadCustomer();
+        }}
+        customer={customer}
+        branches={branches}
+      />
     </div>
   );
 }

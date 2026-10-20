@@ -1647,6 +1647,7 @@ export default function App() {
 
                 {activeTab === 'pcs' && (
                   <UserComputersTab
+                    customer={customerData}
                     computers={customerData.user_computers || []}
                     branches={customerBranches}
                     canEdit={checkPermission(currentUser, 'edit')}
@@ -1661,6 +1662,7 @@ export default function App() {
                     }}
                     onDelete={handleDeletePC}
                     onOpenReport={() => setIsReportModalOpen(true)}
+                    onReloadCustomer={() => loadCustomerDetails(selectedCustomerId)}
                   />
                 )}
 
