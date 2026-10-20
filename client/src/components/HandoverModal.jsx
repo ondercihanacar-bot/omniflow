@@ -12,6 +12,7 @@ export default function HandoverModal({
   onClose,
   customer,
   selectedComputer = null,
+  selectedMailAccount = null,
   computers = [],
   mailAccounts = [],
   currentUser = null
@@ -77,18 +78,42 @@ export default function HandoverModal({
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [showEditorPanel, setShowEditorPanel] = useState(false);
 
-  // Sync state when selectedComputer changes or modal opens
+  // Sync state when selectedComputer or selectedMailAccount changes or modal opens
   useEffect(() => {
     if (!isOpen) return;
 
-    const targetPC = selectedComputer || (computers.length > 0 ? computers[0] : null);
-    if (targetPC) {
-      setCurrentPCId(targetPC.id);
-      populateFromPC(targetPC);
-    } else {
+    if (selectedMailAccount) {
       generateNewDocNo();
+      setAssignedEmail(selectedMailAccount.email_address || '');
+      setEmployeeName(selectedMailAccount.full_name || '');
+      setDepartment(selectedMailAccount.department || '');
+      setBranchName(selectedMailAccount.branch_name || 'Merkez Ofis');
+
+      // Try to find matching PC
+      const normalizedName = (selectedMailAccount.full_name || '').toLowerCase().trim();
+      const matchedPC = computers.find(c => {
+        if (!c.assigned_user || !normalizedName) return false;
+        const u = c.assigned_user.toLowerCase().trim();
+        return u === normalizedName || u.includes(normalizedName) || normalizedName.includes(u);
+      });
+
+      if (matchedPC) {
+        setCurrentPCId(matchedPC.id);
+        populateFromPC(matchedPC, selectedMailAccount.email_address, true);
+      } else if (computers.length > 0) {
+        setCurrentPCId(computers[0].id);
+        populateFromPC(computers[0], selectedMailAccount.email_address, true);
+      }
+    } else {
+      const targetPC = selectedComputer || (computers.length > 0 ? computers[0] : null);
+      if (targetPC) {
+        setCurrentPCId(targetPC.id);
+        populateFromPC(targetPC);
+      } else {
+        generateNewDocNo();
+      }
     }
-  }, [isOpen, selectedComputer, computers]);
+  }, [isOpen, selectedComputer, selectedMailAccount, computers]);
 
   // Generate Doc No
   const generateNewDocNo = (targetPC = null) => {
@@ -102,7 +127,7 @@ export default function HandoverModal({
   };
 
   // Populate data when selecting a PC
-  const populateFromPC = (pc) => {
+  const populateFromPC = (pc, overrideEmail = null, preserveUser = false) => {
     if (!pc) return;
     generateNewDocNo(pc);
     setComputerName(pc.computer_name || '');
@@ -118,29 +143,35 @@ export default function HandoverModal({
     setOfficeVersion(pc.office_version || 'Microsoft 365 Business Standard');
     setRemoteAccessId(pc.remote_access_id || '');
 
-    setEmployeeName(pc.assigned_user || '');
-    setDepartment(pc.department || '');
-    setBranchName(pc.branch_name || 'Merkez Ofis');
-
-    // Auto-detect matching email from customer's mail_accounts
-    let matchedMail = '';
-    if (pc.assigned_user && mailAccounts.length > 0) {
-      const normalizedAssigned = pc.assigned_user.toLowerCase().trim();
-      const found = mailAccounts.find(m => {
-        if (!m) return false;
-        const mailName = (m.full_name || '').toLowerCase().trim();
-        const mailAddress = (m.email_address || '').toLowerCase().trim();
-        return (
-          mailName.includes(normalizedAssigned) ||
-          normalizedAssigned.includes(mailName) ||
-          mailAddress.startsWith(normalizedAssigned.split(' ')[0])
-        );
-      });
-      if (found) {
-        matchedMail = found.email_address;
-      }
+    if (!preserveUser) {
+      setEmployeeName(pc.assigned_user || '');
+      setDepartment(pc.department || '');
+      setBranchName(pc.branch_name || 'Merkez Ofis');
     }
-    setAssignedEmail(matchedMail);
+
+    if (overrideEmail) {
+      setAssignedEmail(overrideEmail);
+    } else {
+      // Auto-detect matching email from customer's mail_accounts
+      let matchedMail = '';
+      if (pc.assigned_user && mailAccounts.length > 0) {
+        const normalizedAssigned = pc.assigned_user.toLowerCase().trim();
+        const found = mailAccounts.find(m => {
+          if (!m) return false;
+          const mailName = (m.full_name || '').toLowerCase().trim();
+          const mailAddress = (m.email_address || '').toLowerCase().trim();
+          return (
+            mailName.includes(normalizedAssigned) ||
+            normalizedAssigned.includes(mailName) ||
+            mailAddress.startsWith(normalizedAssigned.split(' ')[0])
+          );
+        });
+        if (found) {
+          matchedMail = found.email_address;
+        }
+      }
+      setAssignedEmail(matchedMail);
+    }
 
     // Default bag checkbox depending on laptop / desktop
     const isLap = (pc.device_type || '').toLowerCase().includes('laptop') ||

@@ -4,18 +4,21 @@ import {
   Calendar, Clock, Key, Edit, Trash2, LayoutGrid, Table,
   AlertCircle, ShieldCheck, ShieldAlert, Copy, Eye, EyeOff,
   Plus, Search, Server, Building2, Check, RefreshCw, Sparkles,
-  Inbox, Layers, ArrowUpRight, HelpCircle, X
+  Inbox, Layers, ArrowUpRight, HelpCircle, X, FileText
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import { getDaysRemaining, getLicenseStatus } from '../utils/licenseAlerts';
 import { api } from '../api';
 import MailBulkImportModal from './MailBulkImportModal';
+import HandoverModal from './HandoverModal';
 
 export default function MailTab({
   customer,
   mailServices = [],
   mailAccounts = [],
   branches = [],
+  computers = [],
+  currentUser = null,
   canEdit = true,
   canDelete = true,
   canViewPasswords = true,
@@ -39,6 +42,13 @@ export default function MailTab({
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [showAllPasswords, setShowAllPasswords] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
+  const [handoverAccount, setHandoverAccount] = useState(null);
+
+  const handleOpenHandover = (acc = null) => {
+    setHandoverAccount(acc || (mailAccounts.length > 0 ? mailAccounts[0] : null));
+    setIsHandoverModalOpen(true);
+  };
 
   // Quick inline password edit state
   const [editingPassId, setEditingPassId] = useState(null);
@@ -200,6 +210,15 @@ export default function MailTab({
 
           {canEdit && (
             <>
+              <button
+                onClick={() => handleOpenHandover(mailAccounts.length > 0 ? mailAccounts[0] : null)}
+                className="px-3.5 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-bold rounded-xl border border-emerald-500/40 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Seçili müşteride personele ait resmi Zimmet & Teslim Tutanağı oluştur (PDF / Yazdır)"
+              >
+                <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                <span>📄 Zimmet Tutanağı</span>
+              </button>
+
               <button
                 onClick={onAddService}
                 className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
@@ -725,6 +744,13 @@ export default function MailTab({
                         {/* 9. Actions */}
                         <td className="py-3 px-4 whitespace-nowrap text-right">
                           <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => handleOpenHandover(acc)}
+                              className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                              title="Bu personel ve mail hesabı için resmi Zimmet & Teslim Tutanağı oluştur"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                            </button>
                             {canEdit && (
                               <button
                                 onClick={() => onEditAccount(acc)}
@@ -785,6 +811,13 @@ export default function MailTab({
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleOpenHandover(acc)}
+                          className="p-1 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded transition-colors"
+                          title="Bu personel için resmi Zimmet & Teslim Tutanağı oluştur"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                        </button>
                         {canEdit && (
                           <button
                             onClick={() => onEditAccount(acc)}
@@ -939,6 +972,17 @@ export default function MailTab({
         customerId={customer?.id}
         mailServices={mailServices}
         branches={branches}
+      />
+
+      {/* Personel Zimmet & Teslim Tutanağı Modalı */}
+      <HandoverModal
+        isOpen={isHandoverModalOpen}
+        onClose={() => setIsHandoverModalOpen(false)}
+        customer={customer}
+        selectedMailAccount={handoverAccount}
+        computers={computers}
+        mailAccounts={mailAccounts}
+        currentUser={currentUser}
       />
     </div>
   );

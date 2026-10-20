@@ -1770,6 +1770,8 @@ export default function App() {
                     mailServices={customerData.mail_services || []}
                     mailAccounts={customerData.mail_accounts || []}
                     branches={customerBranches}
+                    computers={customerData.user_computers || []}
+                    currentUser={currentUser}
                     canEdit={checkPermission(currentUser, 'edit')}
                     canDelete={checkPermission(currentUser, 'delete')}
                     canViewPasswords={checkPermission(currentUser, 'view_passwords')}
