@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Server, Cloud, Laptop, Shield, Database } from 'lucide-react';
+import {
+  X, Server, Cloud, Laptop, Shield, Database,
+  Sparkles, ClipboardPaste, Check, AlertCircle, ChevronDown, ChevronUp
+} from 'lucide-react';
 
 // ==================== 1. PHYSICAL SERVER MODAL ====================
 export function ServerModal({ isOpen, onClose, onSave, server = null, customerId, branches = [] }) {
@@ -1069,13 +1072,90 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
   );
 }
 
+// Helper to parse copied text from SonicWall, Fortinet, Sophos web console
+export function parseFirewallText(text) {
+  const result = {};
+  if (!text || typeof text !== 'string') return result;
+
+  const lower = text.toLowerCase();
+
+  // 1. Brand
+  if (lower.includes('sonicwall') || lower.includes('sonicos')) {
+    result.brand = 'SonicWall';
+  } else if (lower.includes('fortigate') || lower.includes('fortinet') || lower.includes('fortios')) {
+    result.brand = 'Fortinet';
+  } else if (lower.includes('sophos') || lower.includes('sfos') || lower.includes('xg-')) {
+    result.brand = 'Sophos';
+  } else if (lower.includes('pfsense')) {
+    result.brand = 'pfSense';
+  } else if (lower.includes('watchguard')) {
+    result.brand = 'WatchGuard';
+  }
+
+  // 2. Model
+  const modelMatch = text.match(/(?:Model|Cihaz Modeli)[:\s]+(?:SonicWall\s+|FortiGate\s+)?([A-Za-z0-9\s-]+?)(?:\r?\n|$)/i) ||
+                     text.match(/\b(TZ\s*\d+|NSa\s*\d+|NSsp\s*\d+|NSv\s*\d+|FortiGate[ -]?\w+|XGS\s*\d+)\b/i);
+  if (modelMatch) {
+    result.model = modelMatch[1].trim();
+    result.device_name = `${result.brand || 'Firewall'} ${result.model}`;
+  }
+
+  // 3. Serial Number
+  const snMatch = text.match(/(?:Serial\s*(?:Number|No)?|Seri\s*(?:Numarası|No))[:\s]+([A-F0-9]{10,16})/i) ||
+                  text.match(/\b([A-F0-9]{12})\b/);
+  if (snMatch) {
+    result.serial_number = snMatch[1].trim();
+  }
+
+  // 4. Firmware Version
+  const fwMatch = text.match(/(?:Firmware\s*(?:Version)?|Yazılım\s*Sürümü)[:\s]+([^\r\n]+)/i) ||
+                  text.match(/\b(SonicOS\s+[0-9a-zA-Z.-]+|FortiOS\s+[0-9a-zA-Z.-]+|SFOS\s+[0-9a-zA-Z.-]+)\b/i);
+  if (fwMatch) {
+    result.firmware_version = fwMatch[1].trim();
+  }
+
+  // 5. IP Address
+  const ipMatch = text.match(/(?:IP Address|Yönetim IP|Management IP|LAN IP|WAN IP)[:\s]+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/i);
+  if (ipMatch) {
+    result.management_ip = `https://${ipMatch[1]}:8443`;
+  }
+
+  // 6. Expiry Date (AGSS, CGSS, Support 24x7, UTM bundle)
+  const expMatch = text.match(/(?:Expires?|Bitiş(?:\s*Tarihi)?|Expiration|Valid until)[:\s]*([0-9]{1,2}[./-][0-9]{1,2}[./-][0-9]{2,4})/i) ||
+                   text.match(/\b([0-9]{1,2}[./-][0-9]{1,2}[./-](?:20\d{2}))\b/);
+  if (expMatch) {
+    const dMatch = expMatch[1].match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{4})\b/);
+    if (dMatch) {
+      let p1 = parseInt(dMatch[1], 10);
+      let p2 = parseInt(dMatch[2], 10);
+      let y = dMatch[3];
+      if (p1 <= 12 && p2 > 12) {
+        result.license_expiry = `${String(p2).padStart(2, '0')}.${String(p1).padStart(2, '0')}.${y}`;
+      } else {
+        result.license_expiry = `${String(p1).padStart(2, '0')}.${String(p2).padStart(2, '0')}.${y}`;
+      }
+    }
+  }
+
+  // 7. Notes
+  const notes = [];
+  if (result.serial_number) notes.push(`Seri No: ${result.serial_number}`);
+  if (lower.includes('cgss') || lower.includes('agss')) notes.push('Lisans Paketi: AGSS / CGSS Kapsamlı Güvenlik');
+  if (lower.includes('capture atp')) notes.push('Capture ATP Sandboxing: Aktif');
+  if (lower.includes('support 24x7') || lower.includes('24x7')) notes.push('Teknik Destek: 24x7 Aktif');
+  if (lower.includes('utm')) notes.push('UTM Güvenlik Paketi: Aktif');
+  if (notes.length > 0) result.notes = notes.join('\n');
+
+  return result;
+}
+
 // ==================== 4. FIREWALL MODAL ====================
 export function FirewallModal({ isOpen, onClose, onSave, firewall = null, customerId, branches = [] }) {
   const [formData, setFormData] = useState({
     customer_id: customerId,
     device_name: '',
     branch_name: 'Merkez Ofis',
-    brand: 'Fortinet',
+    brand: 'SonicWall',
     model: '',
     management_ip: '',
     username: 'admin',
@@ -1086,6 +1166,10 @@ export function FirewallModal({ isOpen, onClose, onSave, firewall = null, custom
     ssl_vpn_portal: '',
     notes: ''
   });
+
+  const [showManualPaste, setShowManualPaste] = useState(false);
+  const [pasteInputText, setPasteInputText] = useState('');
+  const [smartDetectionMsg, setSmartDetectionMsg] = useState(null);
 
   useEffect(() => {
     if (firewall) {
@@ -1099,7 +1183,7 @@ export function FirewallModal({ isOpen, onClose, onSave, firewall = null, custom
         customer_id: customerId,
         device_name: '',
         branch_name: branches[0] || 'Merkez Ofis',
-        brand: 'Fortinet',
+        brand: 'SonicWall',
         model: '',
         management_ip: 'https://192.168.1.1:8443',
         username: 'admin',
@@ -1111,6 +1195,9 @@ export function FirewallModal({ isOpen, onClose, onSave, firewall = null, custom
         notes: ''
       });
     }
+    setShowManualPaste(false);
+    setPasteInputText('');
+    setSmartDetectionMsg(null);
   }, [firewall, customerId, isOpen, branches]);
 
   useEffect(() => {
@@ -1121,6 +1208,63 @@ export function FirewallModal({ isOpen, onClose, onSave, firewall = null, custom
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const applyParsedFirewall = (text) => {
+    const parsed = parseFirewallText(text);
+    const count = Object.keys(parsed).length;
+    if (count === 0) {
+      setSmartDetectionMsg({
+        type: 'warning',
+        text: 'Metinde firewall/güvenlik duvarı bilgisi bulunamadı. Lütfen SonicWall web panelindeki System Status veya Licenses alanını kopyalayın.'
+      });
+      return false;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      ...(parsed.brand && { brand: parsed.brand }),
+      ...(parsed.model && { model: parsed.model }),
+      ...(parsed.device_name && (!prev.device_name || prev.device_name === '') && { device_name: parsed.device_name }),
+      ...(parsed.firmware_version && { firmware_version: parsed.firmware_version }),
+      ...(parsed.management_ip && { management_ip: parsed.management_ip }),
+      ...(parsed.license_expiry && { license_expiry: parsed.license_expiry }),
+      ...(parsed.notes && {
+        notes: prev.notes ? `${prev.notes}\n${parsed.notes}` : parsed.notes
+      })
+    }));
+
+    const detectedSummary = [
+      parsed.brand,
+      parsed.model,
+      parsed.firmware_version,
+      parsed.license_expiry ? `Lisans: ${parsed.license_expiry}` : null
+    ].filter(Boolean).join(' • ');
+
+    setSmartDetectionMsg({
+      type: 'success',
+      text: `✓ Başarıyla Algılandı: ${detectedSummary}`
+    });
+    return true;
+  };
+
+  const handleClipboardFill = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          applyParsedFirewall(text);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Clipboard read error:', err);
+    }
+    setShowManualPaste(true);
+    setSmartDetectionMsg({
+      type: 'info',
+      text: 'Pano okunamadı. Lütfen SonicWall web panelinden kopyaladığınız metni aşağıdaki alana yapıştırın (Ctrl+V).'
+    });
+  };
 
   return (
     <div
@@ -1146,6 +1290,91 @@ export function FirewallModal({ isOpen, onClose, onSave, firewall = null, custom
         </div>
 
         <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          {/* Smart Clipboard Auto-Fill Hero Banner */}
+          <div className="bg-gradient-to-r from-rose-950/40 via-slate-900 to-indigo-950/40 border border-rose-500/30 rounded-xl p-3.5 flex flex-col gap-2.5 shadow-sm">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-rose-500/20 text-rose-400 rounded-lg shrink-0">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white flex items-center gap-2">
+                    <span>SonicWall / Firewall Panodan Akıllı Doldur</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-medium">SonicWall / Fortinet / Sophos</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    SonicWall web panelinizdeki (System &gt; Status veya Licenses) metnini kopyalayıp tek tıkla formu doldurun.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleClipboardFill}
+                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-lg shadow-md hover:shadow-rose-950/40 transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Panodaki metni oku ve firewall alanlarını otomatik doldur"
+                >
+                  <ClipboardPaste className="w-3.5 h-3.5" />
+                  <span>Panodan Doldur</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowManualPaste(prev => !prev)}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg border border-slate-700 transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <span>{showManualPaste ? 'Kapat' : 'Metin Yapıştır'}</span>
+                  {showManualPaste ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Manual Paste Drawer */}
+            {showManualPaste && (
+              <div className="pt-2 border-t border-slate-800/80 space-y-2 animate-fadeIn">
+                <textarea
+                  rows={3}
+                  value={pasteInputText}
+                  onChange={(e) => setPasteInputText(e.target.value)}
+                  placeholder="SonicWall web panelinden kopyaladığınız Sistem veya Lisans metnini buraya yapıştırın (Ctrl + V)..."
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-rose-500 placeholder-slate-500"
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!pasteInputText.trim()) return;
+                      const ok = applyParsedFirewall(pasteInputText);
+                      if (ok) setShowManualPaste(false);
+                    }}
+                    disabled={!pasteInputText.trim()}
+                    className="px-3 py-1.5 bg-rose-600 disabled:bg-slate-800 disabled:text-slate-500 hover:bg-rose-500 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Çözümle &amp; Doldur</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Smart Detection Feedback */}
+            {smartDetectionMsg && (
+              <div className={`text-xs px-3 py-2 rounded-lg border flex items-center gap-2 ${
+                smartDetectionMsg.type === 'success'
+                  ? 'bg-emerald-950/70 border-emerald-500/50 text-emerald-200'
+                  : smartDetectionMsg.type === 'warning'
+                  ? 'bg-amber-950/70 border-amber-500/50 text-amber-200'
+                  : 'bg-slate-800/70 border-slate-700 text-slate-300'
+              }`}>
+                {smartDetectionMsg.type === 'success' ? (
+                  <Check className="w-4 h-4 shrink-0 text-emerald-400" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+                )}
+                <span>{smartDetectionMsg.text}</span>
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Cihaz Tanımı / Adı *</label>
