@@ -97,37 +97,45 @@ export default function AntivirusModal({
       url = 'https://' + url;
     }
 
+    // Copy password to clipboard as immediate fallback
     try {
       if (formData.password) {
         await navigator.clipboard.writeText(formData.password);
-        setAutoLoginToast({
-          type: 'success',
-          message: 'Yönetim paneli yeni sekmede açıldı! Giriş parolanız panoya otomatik kopyalandı. Sayfada parola alanına doğrudan Ctrl + V ile yapıştırabilirsiniz.',
-          copied: 'password'
-        });
       } else if (formData.username) {
         await navigator.clipboard.writeText(formData.username);
+      }
+    } catch (err) {}
+
+    // Call desktop automation backend first (launches Chrome, types email/password, clicks Giriş yap)
+    try {
+      const res = await fetch('/api/antivirus/browser-autologin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url,
+          username: formData.username,
+          password: formData.password
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.mode === 'cdp_desktop') {
         setAutoLoginToast({
           type: 'success',
-          message: 'Yönetim paneli yeni sekmede açıldı! Kullanıcı adı panoya kopyalandı.',
-          copied: 'username'
+          message: '🚀 Google Chrome otomatik açıldı! E-posta adresiniz ve şifreniz yazıldı, "Giriş yap" butonuna tıklandı.',
+          copied: 'password'
         });
-      } else {
-        setAutoLoginToast({
-          type: 'info',
-          message: 'Yönetim paneli yeni sekmede açıldı. Giriş bilgilerinizi girmek için aşağıdaki hızlı kopyalama araçlarını kullanabilirsiniz.',
-          copied: null
-        });
+        return;
       }
-    } catch (err) {
-      console.warn('Clipboard write warning:', err);
-      setAutoLoginToast({
-        type: 'info',
-        message: 'Yönetim paneli yeni sekmede açıldı.',
-        copied: null
-      });
+    } catch (e) {
+      console.warn('Desktop auto-login fallback to client:', e);
     }
 
+    // Client-side fallback: open new tab
+    setAutoLoginToast({
+      type: 'success',
+      message: 'Yönetim paneli yeni sekmede açıldı! Giriş parolanız panoya kopyalandı. Sayfada parola alanına doğrudan Ctrl + V yapıştırabilirsiniz.',
+      copied: formData.password ? 'password' : 'username'
+    });
     window.open(url, '_blank');
   };
 

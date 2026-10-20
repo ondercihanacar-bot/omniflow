@@ -44,6 +44,26 @@ export default function AntivirusTab({
       copied: av.password ? 'password' : (av.username ? 'username' : null)
     });
 
+    // Try desktop automated browser launch first
+    try {
+      const res = await fetch('/api/antivirus/browser-autologin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url,
+          username: av.username,
+          password: av.password
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.mode === 'cdp_desktop') {
+        return;
+      }
+    } catch (e) {
+      console.warn('Desktop auto-login fallback to client:', e);
+    }
+
+    // Client-side fallback: open new tab
     window.open(url, '_blank');
   };
 

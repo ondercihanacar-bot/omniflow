@@ -1725,6 +1725,172 @@ app.delete('/api/antivirus-licenses/:id', (req, res) => {
   }
 });
 
+// ----------------- ANTIVIRUS DESKTOP AUTO-LOGIN (CDP AUTOMATION) -----------------
+app.post('/api/antivirus/browser-autologin', async (req, res) => {
+  try {
+    const { url, username, password } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: 'URL belirtilmedi' });
+    }
+
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+    const { spawn } = require('child_process');
+
+    // Find Chrome or Edge executable on Windows
+    const candidates = [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
+    ];
+
+    let browserExe = candidates.find(c => fs.existsSync(c));
+
+    if (!browserExe) {
+      return res.json({
+        success: false,
+        mode: 'cloud_fallback',
+        message: 'Yerel Chrome veya Edge bulunamadı (Bulut ortamı)'
+      });
+    }
+
+    let targetUrl = url.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      targetUrl = 'https://' + targetUrl;
+    }
+
+    const cdpPort = 9333;
+    const userDataDir = path.join(os.tmpdir(), 'omniflow_browser_session');
+
+    // Check if CDP port is already open
+    let cdpReady = false;
+    try {
+      const vRes = await fetch(`http://127.0.0.1:${cdpPort}/json/version`, { signal: AbortSignal.timeout(1000) });
+      if (vRes.ok) cdpReady = true;
+    } catch (e) {}
+
+    if (!cdpReady) {
+      const child = spawn(browserExe, [
+        `--remote-debugging-port=${cdpPort}`,
+        `--user-data-dir=${userDataDir}`,
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--start-maximized',
+        targetUrl
+      ], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      child.unref();
+
+      for (let i = 0; i < 20; i++) {
+        await new Promise(r => setTimeout(r, 400));
+        try {
+          const vRes = await fetch(`http://127.0.0.1:${cdpPort}/json/version`, { signal: AbortSignal.timeout(600) });
+          if (vRes.ok) {
+            cdpReady = true;
+            break;
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (!cdpReady) {
+      spawn(browserExe, [targetUrl], { detached: true, stdio: 'ignore' }).unref();
+      return res.json({
+        success: true,
+        mode: 'browser_direct',
+        message: 'Tarayıcı doğrudan açıldı'
+      });
+    }
+
+    // Query active tabs
+    let hostname = '';
+    try {
+      hostname = new URL(targetUrl).hostname;
+    } catch (e) {}
+
+    const tabsRes = await fetch(`http://127.0.0.1:${cdpPort}/json`);
+    const tabs = await tabsRes.json();
+    let targetTab = tabs.find(t => t.type === 'page' && (t.url.includes('kaspersky') || (hostname && t.url.includes(hostname))));
+    if (!targetTab) {
+      targetTab = tabs.find(t => t.type === 'page');
+    }
+
+    if (targetTab && targetTab.webSocketDebuggerUrl) {
+      const ws = new WebSocket(targetTab.webSocketDebuggerUrl);
+      ws.onopen = () => {
+        if (!targetTab.url.includes('kaspersky') && (!hostname || !targetTab.url.includes(hostname))) {
+          ws.send(JSON.stringify({
+            id: 1,
+            method: 'Page.navigate',
+            params: { url: targetUrl }
+          }));
+        }
+
+        const u = username || '';
+        const p = password || '';
+        const fillerScript = `
+          (function checkAndFill(retries = 0) {
+            const emailInput = document.querySelector('input[type="email"], input[name*="mail" i], input[name*="user" i], input[id*="mail" i], input[id*="user" i], input[name="Email"], input[name="username"], input[type="text"]');
+            const passInput = document.querySelector('input[type="password"]');
+            
+            if (emailInput && ${JSON.stringify(u)}) {
+              emailInput.focus();
+              emailInput.value = ${JSON.stringify(u)};
+              emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+              emailInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            if (passInput && ${JSON.stringify(p)}) {
+              passInput.focus();
+              passInput.value = ${JSON.stringify(p)};
+              passInput.dispatchEvent(new Event('input', { bubbles: true }));
+              passInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            if ((emailInput && ${JSON.stringify(u)}) || (passInput && ${JSON.stringify(p)})) {
+              setTimeout(() => {
+                const btn = document.querySelector('button[type="submit"], input[type="submit"], button.btn-primary') ||
+                  Array.from(document.querySelectorAll('button')).find(b => (b.innerText || '').includes('Giriş') || (b.innerText || '').toLowerCase().includes('sign in') || (b.innerText || '').toLowerCase().includes('log in'));
+                if (btn) {
+                  btn.click();
+                }
+              }, 600);
+              return true;
+            } else if (retries < 30) {
+              setTimeout(() => checkAndFill(retries + 1), 400);
+            }
+          })();
+        `;
+
+        setTimeout(() => {
+          ws.send(JSON.stringify({
+            id: 2,
+            method: 'Runtime.evaluate',
+            params: { expression: fillerScript }
+          }));
+        }, 1200);
+
+        setTimeout(() => {
+          try { ws.close(); } catch (e) {}
+        }, 6000);
+      };
+    }
+
+    res.json({
+      success: true,
+      mode: 'cdp_desktop',
+      message: 'Tarayıcı açıldı, bilgiler otomatik girildi ve giriş yapıldı!'
+    });
+  } catch (error) {
+    console.error('Browser autologin error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ----------------- MAIL SERVICES (PANELS & EXCHANGE) -----------------
 app.get('/api/mail-services', (req, res) => {
   try {
