@@ -23,12 +23,12 @@ export default function AssetTagModal({
 
   // Collect all items unified
   const allItems = [
-    ...computers.map(c => ({
+    ...(computers || []).map(c => ({
       id: `pc_${c.id}`,
       originalId: c.id,
       category: 'pc',
       categoryLabel: 'Kullanıcı Bilgisayarı',
-      title: c.computer_name,
+      title: c.computer_name || 'PC',
       subtitle: `${c.brand || ''} ${c.model || ''}`.trim() || 'Bilgisayar',
       user: c.assigned_user || 'Atanmamış',
       department: c.department || '',
@@ -38,27 +38,27 @@ export default function AssetTagModal({
       ip: c.ethernet_ip || c.wifi_ip || '',
       remoteId: c.remote_access_id || ''
     })),
-    ...servers.map(s => ({
+    ...(servers || []).map(s => ({
       id: `server_${s.id}`,
       originalId: s.id,
       category: 'server',
       categoryLabel: 'Fiziksel Sunucu',
-      title: s.server_name,
+      title: s.server_name || 'Sunucu',
       subtitle: `${s.brand || ''} ${s.model || ''}`.trim() || 'Sunucu Donanımı',
       user: s.role_description || 'Ana Sunucu',
       department: s.server_type || 'Sunucu Odası',
       branch: s.branch_name || 'Merkez Ofis',
       serialNumber: s.serial_number || 'S/N Belirtilmedi',
       mac: s.mac_address || '',
-      ip: s.os_ip || s.ilo_ip || '',
+      ip: s.ip_address || s.management_ip || '',
       remoteId: ''
     })),
-    ...firewalls.map(f => ({
+    ...(firewalls || []).map(f => ({
       id: `firewall_${f.id}`,
       originalId: f.id,
       category: 'firewall',
       categoryLabel: 'Güvenlik Duvarı',
-      title: f.device_name,
+      title: f.device_name || 'Firewall',
       subtitle: `${f.brand || ''} ${f.model || ''}`.trim() || 'Firewall',
       user: f.external_ip ? `Dış IP: ${f.external_ip}` : 'Ağ Ağ Geçidi',
       department: 'Ağ & Güvenlik',
@@ -79,8 +79,10 @@ export default function AssetTagModal({
       setTagMode('single');
     } else if (allItems.length > 0) {
       setCurrentDeviceId(allItems[0].id);
+    } else {
+      setCurrentDeviceId(null);
     }
-  }, [isOpen, selectedDevice, deviceType]);
+  }, [isOpen, selectedDevice, deviceType, allItems.length]);
 
   // Generate QR code data URLs for items
   useEffect(() => {
@@ -90,20 +92,23 @@ export default function AssetTagModal({
     const generateAllQrs = async () => {
       const urlMap = {};
       const origin = typeof window !== 'undefined' ? window.location.origin : 'https://omniflow.local';
+      const qrLib = QRCode.default || QRCode;
 
       for (const item of allItems) {
         // Build QR target payload: Link to customer + device
         const qrPayload = `${origin}/?customer=${customer?.id || 1}&asset=${encodeURIComponent(item.title)}`;
         try {
-          const dataUrl = await QRCode.toDataURL(qrPayload, {
-            width: 240,
-            margin: 1,
-            color: {
-              dark: '#0f172a',
-              light: '#ffffff'
-            }
-          });
-          urlMap[item.id] = dataUrl;
+          if (qrLib && typeof qrLib.toDataURL === 'function') {
+            const dataUrl = await qrLib.toDataURL(qrPayload, {
+              width: 240,
+              margin: 1,
+              color: {
+                dark: '#0f172a',
+                light: '#ffffff'
+              }
+            });
+            urlMap[item.id] = dataUrl;
+          }
         } catch (err) {
           console.warn('QR gen error for', item.title, err);
         }
@@ -159,7 +164,7 @@ export default function AssetTagModal({
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                {customer.name} — Cihaz kasaları, monitörler ve sunucular için QR kimlik etiketi basımı
+                {customer?.company_name || customer?.name || 'Müşteri'} — Cihaz kasaları, monitörler ve sunucular için QR kimlik etiketi basımı
               </p>
             </div>
           </div>
@@ -167,7 +172,8 @@ export default function AssetTagModal({
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer"
+              disabled={allItems.length === 0}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer"
               title="Yazıcıdan doğrudan etiket çıktısı al"
             >
               <Printer className="w-3.5 h-3.5" />
@@ -215,13 +221,18 @@ export default function AssetTagModal({
               <select
                 value={currentDeviceId || ''}
                 onChange={(e) => setCurrentDeviceId(e.target.value)}
-                className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer flex-1 font-mono"
+                disabled={allItems.length === 0}
+                className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer flex-1 font-mono disabled:opacity-40"
               >
-                {allItems.map(i => (
-                  <option key={i.id} value={i.id}>
-                    [{i.categoryLabel}] {i.title} — {i.user}
-                  </option>
-                ))}
+                {allItems.length === 0 ? (
+                  <option value="">Cihaz Bulunmuyor</option>
+                ) : (
+                  allItems.map(i => (
+                    <option key={i.id} value={i.id}>
+                      [{i.categoryLabel}] {i.title} — {i.user}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           )}
@@ -261,7 +272,7 @@ export default function AssetTagModal({
             <div className="border-b-2 border-slate-900 pb-3 mb-6 flex items-center justify-between">
               <div>
                 <div className="font-black text-lg text-slate-900 tracking-tight">
-                  {customer.name}
+                  {customer?.company_name || customer?.name || 'Müşteri'}
                 </div>
                 <div className="text-xs font-bold text-blue-800 uppercase tracking-wider">
                   OMNIFLOW AKILLI VARLIK &amp; DONANIM ETİKETLERİ
@@ -273,35 +284,46 @@ export default function AssetTagModal({
               </div>
             </div>
 
-            {/* Labels Grid */}
-            <div className={`grid gap-4 ${
-              tagSize === 'small'
-                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-                : tagSize === 'large'
-                ? 'grid-cols-1 sm:grid-cols-2'
-                : 'grid-cols-1 sm:grid-cols-2'
-            }`}>
-              {itemsToRender.map((item) => {
-                const qrUrl = qrCodeDataUrls[item.id];
+            {/* Labels Grid or Empty State */}
+            {itemsToRender.length === 0 ? (
+              <div className="py-12 px-4 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                <Tag className="w-10 h-10 mx-auto text-slate-400 mb-2 opacity-60" />
+                <div className="text-sm font-bold text-slate-800">
+                  Etiketlenecek Cihaz Bulunamadı
+                </div>
+                <div className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
+                  Bu müşteriye ait henüz kayıtlı kullanıcı bilgisayarı, sunucu veya güvenlik duvarı bulunmuyor. Yeni bir cihaz eklediğinizde QR etiketi anında burada hazır olacaktır.
+                </div>
+              </div>
+            ) : (
+              <div className={`grid gap-4 ${
+                tagSize === 'small'
+                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                  : tagSize === 'large'
+                  ? 'grid-cols-1 sm:grid-cols-2'
+                  : 'grid-cols-1 sm:grid-cols-2'
+              }`}>
+                {itemsToRender.map((item) => {
+                  const qrUrl = qrCodeDataUrls[item.id];
 
-                return (
-                  <div
-                    key={item.id}
-                    className="border-2 border-slate-900 rounded-xl p-3 bg-white flex items-center justify-between gap-3 break-inside-avoid shadow-sm relative overflow-hidden"
-                    style={{
-                      minHeight: tagSize === 'small' ? '120px' : tagSize === 'large' ? '180px' : '145px'
-                    }}
-                  >
-                    {/* Left Info Column */}
-                    <div className="flex-1 min-w-0 flex flex-col justify-between h-full space-y-1">
-                      {/* Top Header */}
-                      <div>
-                        <div className="flex items-center gap-1.5 text-[9px] font-black tracking-wider uppercase text-blue-900">
-                          <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-950 font-bold border border-blue-300">
-                            OMNIFLOW
-                          </span>
-                          <span className="truncate">{customer.code || customer.name}</span>
-                        </div>
+                  return (
+                    <div
+                      key={item.id}
+                      className="border-2 border-slate-900 rounded-xl p-3 bg-white flex items-center justify-between gap-3 break-inside-avoid shadow-sm relative overflow-hidden"
+                      style={{
+                        minHeight: tagSize === 'small' ? '120px' : tagSize === 'large' ? '180px' : '145px'
+                      }}
+                    >
+                      {/* Left Info Column */}
+                      <div className="flex-1 min-w-0 flex flex-col justify-between h-full space-y-1">
+                        {/* Top Header */}
+                        <div>
+                          <div className="flex items-center gap-1.5 text-[9px] font-black tracking-wider uppercase text-blue-900">
+                            <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-950 font-bold border border-blue-300">
+                              OMNIFLOW
+                            </span>
+                            <span className="truncate">{customer?.short_code || customer?.company_name || customer?.name || 'OMNIFlow'}</span>
+                          </div>
 
                         {/* Device Hostname */}
                         <div className="font-black text-slate-950 font-mono text-base sm:text-lg tracking-tight leading-tight mt-1 truncate">
@@ -355,6 +377,7 @@ export default function AssetTagModal({
                 );
               })}
             </div>
+          )}
 
             {/* Print Footer (Rule 1 Developer Signature) */}
             <div className="border-t border-slate-300 mt-8 pt-3 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-500 font-mono gap-1">

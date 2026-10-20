@@ -609,6 +609,13 @@ export default function UserComputersTab({
                     <td className="py-3 px-3.5 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
+                          onClick={() => handleOpenTagModal(c)}
+                          title="Bu cihaz için akıllı QR kodlu varlık etiketi bas"
+                          className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <QrCode className="w-4 h-4 text-blue-400" />
+                        </button>
+                        <button
                           onClick={() => handleOpenHandover(c)}
                           title="Bu bilgisayar ve personel için resmi Zimmet Tutanağı oluştur"
                           className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
@@ -659,6 +666,18 @@ export default function UserComputersTab({
         computers={computers}
         mailAccounts={mailAccounts}
         currentUser={currentUser}
+      />
+
+      {/* Akıllı QR Kod & Varlık Etiketleyici Modalı */}
+      <AssetTagModal
+        isOpen={isTagModalOpen}
+        onClose={() => setIsTagModalOpen(false)}
+        customer={customer}
+        selectedDevice={selectedDeviceForTag}
+        deviceType="pc"
+        computers={computers}
+        servers={customer?.physical_servers || []}
+        firewalls={customer?.firewalls || []}
       />
     </div>
   );

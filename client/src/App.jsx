@@ -35,6 +35,7 @@ import CopyButton from './components/CopyButton';
 import DeleteCustomerSecurityModal from './components/DeleteCustomerSecurityModal';
 import DisasterVaultModal from './components/DisasterVaultModal';
 import SecurityAuditModal from './components/SecurityAuditModal';
+import AssetTagModal from './components/AssetTagModal';
 import { exportCustomerToExcel } from './utils/exporter';
 import {
   getDaysRemaining, getLicenseStatus, playAlertChime, getSoundEnabled,
@@ -44,7 +45,7 @@ import { checkPermission } from './utils/permissions';
 import {
   Building2, Globe, Phone, Mail, Edit, Trash2, LayoutDashboard,
   Server, Cloud, Laptop, Shield, ShieldCheck, Database, Plus, RefreshCw,
-  Network, FileSpreadsheet, Printer, Wifi, BookOpen, Lock, Key, AlertCircle, Award
+  Network, FileSpreadsheet, Printer, Wifi, BookOpen, Lock, Key, AlertCircle, Award, QrCode
 } from 'lucide-react';
 import { useLanguage } from './context/LanguageContext';
 
@@ -106,6 +107,7 @@ export default function App() {
   const [isDeleteSecurityModalOpen, setIsDeleteSecurityModalOpen] = useState(false);
   const [isDisasterVaultModalOpen, setIsDisasterVaultModalOpen] = useState(false);
   const [isSecurityAuditModalOpen, setIsSecurityAuditModalOpen] = useState(false);
+  const [isAssetTagModalOpen, setIsAssetTagModalOpen] = useState(false);
   const [licenseAlerts, setLicenseAlerts] = useState([]);
   const hasPlayedAlertSound = useRef(false);
 
@@ -1289,6 +1291,16 @@ export default function App() {
                       <span>🛡️ Güvenlik Karnesi</span>
                     </button>
 
+                    {/* Akıllı QR Etiket Basıcı */}
+                    <button
+                      onClick={() => setIsAssetTagModalOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-blue-950/40 hover:bg-blue-900/60 text-blue-300 text-xs font-bold rounded-lg border border-blue-800/60 hover:border-blue-600 transition-all cursor-pointer shadow-sm"
+                      title="Müşteriye ait tüm PC, Sunucu ve Güvenlik Duvarları için QR kodlu varlık etiketleri üret (Termal & A4)"
+                    >
+                      <QrCode className="w-3.5 h-3.5 text-blue-400" />
+                      <span>🏷️ QR Etiket Bas</span>
+                    </button>
+
                     {checkPermission(currentUser, 'edit') && (
                       <button
                         onClick={() => {
@@ -2115,6 +2127,19 @@ export default function App() {
         onClose={() => setIsSecurityAuditModalOpen(false)}
         customer={customerData}
       />
+
+      {/* Akıllı QR Kod & Varlık Etiketleyici Modalı */}
+      {isAssetTagModalOpen && customerData && (
+        <AssetTagModal
+          isOpen={isAssetTagModalOpen}
+          onClose={() => setIsAssetTagModalOpen(false)}
+          customer={customerData}
+          deviceType="pc"
+          computers={customerData.user_computers || []}
+          servers={customerData.physical_servers || []}
+          firewalls={customerData.firewalls || []}
+        />
+      )}
     </div>
   );
 }
