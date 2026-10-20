@@ -9,6 +9,7 @@ import UserComputersTab from './components/UserComputersTab';
 import FirewallsTab from './components/FirewallsTab';
 import BackupUnitsTab from './components/BackupUnitsTab';
 import NetworkTopologyTab from './components/NetworkTopologyTab';
+import ErrorBoundary from './components/ErrorBoundary';
 import InternetLinesTab from './components/InternetLinesTab';
 import WifiTab from './components/WifiTab';
 import InternetLineModal from './components/InternetLineModal';
@@ -1447,10 +1448,12 @@ export default function App() {
                 )}
 
                 {activeTab === 'topology' && (
-                  <NetworkTopologyTab
-                    customer={customerData}
-                    onOpenReport={() => setIsReportModalOpen(true)}
-                  />
+                  <ErrorBoundary title="Ağ Topolojisi Sekmesinde Bir Sorun Oluştu">
+                    <NetworkTopologyTab
+                      customer={customerData}
+                      onOpenReport={() => setIsReportModalOpen(true)}
+                    />
+                  </ErrorBoundary>
                 )}
 
                 {activeTab === 'lines' && (

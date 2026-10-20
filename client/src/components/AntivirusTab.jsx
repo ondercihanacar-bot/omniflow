@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import {
   Shield, Plus, Globe, ExternalLink, User, Lock, Users,
   Calendar, Clock, Key, Edit, Trash2, LayoutGrid, Table,
-  AlertCircle, ShieldCheck, ShieldAlert, Copy, Eye, EyeOff
+  AlertCircle, ShieldCheck, ShieldAlert, Copy, Eye, EyeOff,
+  Zap, Sparkles, X
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import { getDaysRemaining, getLicenseStatus } from '../utils/licenseAlerts';
@@ -18,6 +19,33 @@ export default function AntivirusTab({
   });
 
   const [visiblePasswords, setVisiblePasswords] = useState({});
+  const [activeAssistant, setActiveAssistant] = useState(null);
+  const [copiedField, setCopiedField] = useState(null);
+
+  const handleLaunchWithCredentials = async (av) => {
+    let url = av.portal_url?.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+    // Copy password to clipboard first (or username if password is empty)
+    try {
+      if (av.password) {
+        await navigator.clipboard.writeText(av.password);
+      } else if (av.username) {
+        await navigator.clipboard.writeText(av.username);
+      }
+    } catch (e) {
+      console.warn('Clipboard error:', e);
+    }
+
+    setActiveAssistant({
+      ...av,
+      url,
+      copied: av.password ? 'password' : (av.username ? 'username' : null)
+    });
+
+    window.open(url, '_blank');
+  };
 
   const togglePasswordVisibility = (id) => {
     setVisiblePasswords(prev => ({
@@ -144,6 +172,71 @@ export default function AntivirusTab({
         </div>
       </div>
 
+      {/* Floating Quick-Login Assistant HUD */}
+      {activeAssistant && (
+        <div className="p-4 bg-gradient-to-r from-slate-900 via-emerald-950/80 to-slate-900 border-2 border-emerald-500/60 rounded-2xl shadow-2xl space-y-2.5 animate-fadeIn">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span className="text-xs font-bold text-white font-mono">
+                🚀 {activeAssistant.product_name} Yönetim Paneli Açıldı!
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                Parola Panoya Kopyalandı (Ctrl+V)
+              </span>
+            </div>
+            <button
+              onClick={() => setActiveAssistant(null)}
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            {activeAssistant.username && (
+              <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                <span className="text-slate-400 text-[10px]">Kullanıcı:</span>
+                <span className="text-white font-mono font-semibold">{activeAssistant.username}</span>
+                <CopyButton text={activeAssistant.username} title="Kullanıcı Adını Kopyala" />
+              </div>
+            )}
+
+            {activeAssistant.password && (
+              <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                <span className="text-slate-400 text-[10px]">Parola:</span>
+                <span className="text-amber-400 font-mono font-semibold">••••••••</span>
+                <CopyButton text={activeAssistant.password} title="Parolayı Kopyala" />
+              </div>
+            )}
+
+            <button
+              onClick={async () => {
+                const code = `javascript:(function(){var u=${JSON.stringify(activeAssistant.username||'')};var p=${JSON.stringify(activeAssistant.password||'')};var e=document.querySelector('input[type="email"],input[name*="mail" i],input[name*="user" i],input[id*="mail" i],input[id*="user" i],input[name="Email"],input[name="username"],input[type="text"]');var pw=document.querySelector('input[type="password"]');if(e&&u){e.value=u;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));}if(pw&&p){pw.value=p;pw.dispatchEvent(new Event('input',{bubbles:true}));pw.dispatchEvent(new Event('change',{bubbles:true}));}var b=document.querySelector('button[type="submit"],input[type="submit"],button[data-testid*="submit"],button.btn-primary');if(b)b.focus();})();`;
+                await navigator.clipboard.writeText(code);
+                setCopiedField('bookmarklet');
+                setTimeout(() => setCopiedField(null), 2500);
+              }}
+              className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+              title="Otomatik form doldurma kodunu panoya kopyalar"
+            >
+              <Zap className="w-3 h-3 text-amber-400" />
+              <span>{copiedField === 'bookmarklet' ? '✓ Doldurma Kodu Kopyalandı' : '⭐ OmniFill: Tek Tıkla Doldur'}</span>
+            </button>
+
+            <a
+              href={activeAssistant.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] text-cyan-400 hover:underline flex items-center gap-1 ml-auto"
+            >
+              <ExternalLink className="w-3 h-3" />
+              <span>Sayfayı Tekrar Aç</span>
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Content Area */}
       {licenses.length === 0 ? (
         <div className="p-12 text-center bg-slate-900/50 border border-slate-800/80 rounded-2xl">
@@ -207,16 +300,15 @@ export default function AntivirusTab({
                         <span className="text-xs text-slate-300 truncate font-mono">{av.portal_url}</span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <CopyButton text={av.portal_url} title="Panel Adresini Kopyala" />
-                        <a
-                          href={av.portal_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Yönetim Panelini Aç"
-                          className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition-colors"
+                        <button
+                          onClick={() => handleLaunchWithCredentials(av)}
+                          className="flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-[10px] font-bold shadow transition-all cursor-pointer active:scale-95"
+                          title="Paneli yeni sekmede aç ve parolayı otomatik panoya kopyala"
                         >
-                          <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
-                        </a>
+                          <ExternalLink className="w-3 h-3" />
+                          <span>Giriş Yap &amp; Aç</span>
+                        </button>
+                        <CopyButton text={av.portal_url} title="Panel Adresini Kopyala" />
                       </div>
                     </div>
                   )}
@@ -357,11 +449,19 @@ export default function AntivirusTab({
                       <td className="px-4 py-3">
                         {av.portal_url ? (
                           <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleLaunchWithCredentials(av)}
+                              className="flex items-center gap-1 px-2 py-0.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 rounded-lg text-[10px] font-bold transition-all cursor-pointer shrink-0 active:scale-95"
+                              title="Web sayfasını aç ve parolayı otomatik panoya kopyala"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span>Giriş Yap</span>
+                            </button>
                             <a
                               href={av.portal_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-400 hover:underline max-w-[160px] truncate"
+                              className="text-blue-400 hover:underline max-w-[120px] truncate"
                             >
                               {av.portal_url.replace(/^https?:\/\//, '')}
                             </a>

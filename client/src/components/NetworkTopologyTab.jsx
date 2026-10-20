@@ -6,19 +6,31 @@ import {
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import StarTopologyView from './StarTopologyView';
+import ErrorBoundary from './ErrorBoundary';
 
 export default function NetworkTopologyTab({ customer, onOpenReport }) {
   const [viewLayout, setViewLayout] = useState('star'); // 'star' (Yıldız / HUD Haritası) | 'tree' (Klasik Hiyerarşik Ağaç)
   const [filterMode, setFilterMode] = useState('ALL'); // ALL, SERVERS, PCS
   const [selectedDept, setSelectedDept] = useState('ALL');
 
-  if (!customer) return null;
+  if (!customer) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center bg-slate-900/60 border border-slate-800 rounded-3xl min-h-[400px]">
+        <Network className="w-12 h-12 text-cyan-400 mb-3 animate-pulse" />
+        <h3 className="text-base font-bold text-white mb-1">Ağ Topolojisi Yükleniyor</h3>
+        <p className="text-xs text-slate-400 max-w-sm">
+          Müşteri ağ haritası ve cihaz topolojisi yüklenirken lütfen bekleyin...
+        </p>
+      </div>
+    );
+  }
 
   const servers = customer.physical_servers || [];
   const vms = customer.virtual_machines || [];
   const pcs = customer.user_computers || [];
   const firewalls = customer.firewalls || [];
   const backups = customer.backup_units || [];
+  const lines = customer.internet_lines || [];
 
   // Group PCs by Department
   const distinctDepts = Array.from(new Set(pcs.map(p => p.department || 'Genel'))).filter(Boolean);
@@ -130,7 +142,13 @@ export default function NetworkTopologyTab({ customer, onOpenReport }) {
 
       {/* ================= 1. STAR / CONSTELLATION HUD MAP VIEW ================= */}
       {viewLayout === 'star' && (
-        <StarTopologyView customer={customer} onOpenReport={onOpenReport} />
+        <ErrorBoundary
+          title="Yıldız Haritası Yüklenirken Bir Hata Oluştu"
+          fallbackAction={() => setViewLayout('tree')}
+          fallbackActionText="Klasik Dikey Hiyerarşiye Geç"
+        >
+          <StarTopologyView customer={customer} onOpenReport={onOpenReport} />
+        </ErrorBoundary>
       )}
 
       {/* ================= 2. CLASSIC TOPOLOGY DIAGRAM TREE VIEW ================= */}
@@ -142,7 +160,7 @@ export default function NetworkTopologyTab({ customer, onOpenReport }) {
 
         {/* 1. INTERNET / WAN LINES & BRANCHES NODE */}
         <div className="relative z-10 flex flex-col items-center w-full max-w-4xl">
-          {(!customer.internet_lines || customer.internet_lines.length === 0) ? (
+          {(!lines || lines.length === 0) ? (
             <div className="bg-gradient-to-r from-blue-900/60 to-indigo-900/60 border border-blue-500/50 rounded-2xl px-6 py-3.5 shadow-xl flex items-center gap-3 backdrop-blur-md">
               <div className="p-2 bg-blue-500/20 text-blue-400 rounded-xl">
                 <Globe className="w-6 h-6 animate-pulse" />
@@ -159,12 +177,12 @@ export default function NetworkTopologyTab({ customer, onOpenReport }) {
             <div className="w-full">
               <div className="text-center mb-2.5">
                 <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/40 uppercase">
-                  🌐 Müşteri İnternet Hatları & Şubeleri ({customer.internet_lines.length})
+                  🌐 Müşteri İnternet Hatları &amp; Şubeleri ({lines.length})
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {customer.internet_lines.map(line => {
+                {lines.map(line => {
                   const isFiber = (line.line_type || '').includes('Fiber') || (line.line_type || '').includes('Metro');
                   const isVdsl = (line.line_type || '').includes('VDSL') || (line.line_type || '').includes('ADSL');
 

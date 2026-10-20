@@ -36,9 +36,9 @@ export default function StarTopologyView({ customer, onOpenReport }) {
   const centralHub = {
     id: 'center-core',
     type: 'hub',
-    title: primaryFirewall ? primaryFirewall.device_name : 'Merkez Güvenlik Ağ Geçidi',
-    subtitle: primaryFirewall ? `${primaryFirewall.brand} ${primaryFirewall.model}` : (customer.name || 'Kurumsal Ağ Omurgası'),
-    ip: primaryFirewall?.management_ip || customer.external_ip || '192.168.1.1',
+    title: primaryFirewall?.device_name || 'Merkez Güvenlik Ağ Geçidi',
+    subtitle: primaryFirewall ? `${primaryFirewall.brand || ''} ${primaryFirewall.model || ''}`.trim() : (customer?.name || 'Kurumsal Ağ Omurgası'),
+    ip: primaryFirewall?.management_ip || customer?.external_ip || '192.168.1.1',
     status: 'Aktif & Korumalı',
     color: '#06b6d4', // Cyan
     icon: Shield,
@@ -55,14 +55,14 @@ export default function StarTopologyView({ customer, onOpenReport }) {
       id: 'node-wan',
       category: 'wan',
       title: 'İnternet & WAN Hatları',
-      subtitle: lines.length > 0 ? `${lines.length} Aktif Hat` : (customer.external_ip ? customer.external_ip.split(' ')[0] : 'Statik IP'),
-      ip: customer.external_ip || (lines[0]?.static_ip) || 'Statik IP',
+      subtitle: lines.length > 0 ? `${lines.length} Aktif Hat` : (typeof customer?.external_ip === 'string' && customer.external_ip.trim() ? customer.external_ip.split(' ')[0] : 'Statik IP'),
+      ip: customer?.external_ip || (lines[0]?.static_ip) || 'Statik IP',
       icon: Globe,
       color: '#0ea5e9', // Sky blue
       count: lines.length || 1,
       badge: lines.length > 0 ? `${lines.length} Hat` : 'Statik IP',
       data: lines,
-      externalIp: customer.external_ip
+      externalIp: customer?.external_ip || ''
     });
 
     // 2. Physical Servers
@@ -72,8 +72,8 @@ export default function StarTopologyView({ customer, onOpenReport }) {
       list.push({
         id: `node-srv-${srv.id}`,
         category: 'servers',
-        title: srv.server_name,
-        subtitle: srv.brand ? `${srv.brand} ${srv.model}` : 'Fiziki Sunucu',
+        title: srv.server_name || 'Fiziki Sunucu',
+        subtitle: srv.brand ? `${srv.brand} ${srv.model || ''}`.trim() : 'Fiziki Sunucu',
         ip: srv.ip_address || srv.management_ip || '192.168.1.10',
         icon: Server,
         color: '#6366f1', // Indigo
@@ -116,16 +116,23 @@ export default function StarTopologyView({ customer, onOpenReport }) {
 
     // 4. Storage & Backup (NAS)
     if (backups.length > 0) {
+      const b0 = backups[0];
+      let bBadge = 'Yedek Deposu';
+      if (b0?.capacity) {
+        bBadge = typeof b0.capacity === 'string' && b0.capacity.includes('-')
+          ? b0.capacity.split('-')[0].trim()
+          : String(b0.capacity);
+      }
       list.push({
         id: 'node-backups',
         category: 'storage',
-        title: backups.length === 1 ? backups[0].device_name : 'Depolama & Yedekleme (NAS)',
-        subtitle: backups.length === 1 ? `${backups[0].brand} ${backups[0].model}` : `${backups.length} NAS Ünitesi`,
-        ip: backups[0]?.management_ip || 'NAS IP',
+        title: backups.length === 1 ? (b0.device_name || 'NAS Depolama') : 'Depolama & Yedekleme (NAS)',
+        subtitle: backups.length === 1 ? `${b0.brand || ''} ${b0.model || ''}`.trim() : `${backups.length} NAS Ünitesi`,
+        ip: b0?.management_ip || 'NAS IP',
         icon: Database,
         color: '#f59e0b', // Amber
         count: backups.length,
-        badge: backups[0]?.capacity ? backups[0].capacity.split('-')[0].trim() : 'Yedek Deposu',
+        badge: bBadge,
         data: backups
       });
     }
@@ -227,6 +234,7 @@ export default function StarTopologyView({ customer, onOpenReport }) {
   // Node positions mapped to polar angles
   const positionedNodes = useMemo(() => {
     const N = nodes.length;
+    if (N === 0) return [];
     return nodes.map((node, index) => {
       const angle = (index * 2 * Math.PI) / N - Math.PI / 2;
       const x = centerX + orbitRadius * Math.cos(angle);
@@ -234,8 +242,8 @@ export default function StarTopologyView({ customer, onOpenReport }) {
       return {
         ...node,
         angle,
-        x,
-        y
+        x: Number.isFinite(x) ? x : centerX,
+        y: Number.isFinite(y) ? y : centerY
       };
     });
   }, [nodes, centerX, centerY, orbitRadius]);
@@ -490,7 +498,7 @@ export default function StarTopologyView({ customer, onOpenReport }) {
 
             {/* 2. CONSTELLATION STAR MESH LINES (Outer Ring & Star Chords) */}
             {/* Outer perimeter polygon connecting node[i] -> node[i+1] */}
-            {positionedNodes.map((n, i) => {
+            {positionedNodes.length >= 3 && positionedNodes.map((n, i) => {
               const next = positionedNodes[(i + 1) % positionedNodes.length];
               const isDimmed = isNodeDimmed(n) || isNodeDimmed(next);
               return (
@@ -558,7 +566,7 @@ export default function StarTopologyView({ customer, onOpenReport }) {
                     >
                       <animateMotion
                         path={`M ${centerX} ${centerY} L ${n.x} ${n.y}`}
-                        dur={`${2.2 + (n.angle % 1)}s`}
+                        dur={`${Math.max(1.5, 2.2 + ((n.angle || 0) % 1))}s`}
                         repeatCount="indefinite"
                       />
                     </circle>
@@ -653,7 +661,7 @@ export default function StarTopologyView({ customer, onOpenReport }) {
                       fontWeight="bold"
                       fontFamily="system-ui, sans-serif"
                     >
-                      {n.title.length > 18 ? n.title.slice(0, 16) + '...' : n.title}
+                      {(n.title || '').length > 18 ? (n.title || '').slice(0, 16) + '...' : (n.title || '')}
                     </text>
 
                     {/* Node Subtitle / IP */}
@@ -666,7 +674,7 @@ export default function StarTopologyView({ customer, onOpenReport }) {
                       fontFamily="monospace"
                       fontWeight="600"
                     >
-                      {n.badge}
+                      {n.badge || ''}
                     </text>
                   </g>
                 </g>
@@ -750,7 +758,7 @@ export default function StarTopologyView({ customer, onOpenReport }) {
                   fontWeight="bold"
                   fontFamily="system-ui, sans-serif"
                 >
-                  {centralHub.title.length > 22 ? centralHub.title.slice(0, 20) + '...' : centralHub.title}
+                  {(centralHub.title || '').length > 22 ? (centralHub.title || '').slice(0, 20) + '...' : (centralHub.title || 'Merkez Güvenlik')}
                 </text>
                 <text
                   x={0}
@@ -761,7 +769,7 @@ export default function StarTopologyView({ customer, onOpenReport }) {
                   fontFamily="monospace"
                   fontWeight="bold"
                 >
-                  {centralHub.ip}
+                  {centralHub.ip || '-'}
                 </text>
               </g>
             </g>
@@ -1002,6 +1010,45 @@ export default function StarTopologyView({ customer, onOpenReport }) {
                         </div>
                         <div className="text-slate-400 text-[10px]">Kapasite: {bu.capacity || '-'}</div>
                         <div className="text-slate-400 text-[10px]">Yazılım: {bu.backup_software || '-'}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 6. If EDR / Antivirus */}
+                {activeSelected.category === 'security' && Array.isArray(activeSelected.data) && (
+                  <div className="space-y-2">
+                    {activeSelected.data.map(av => (
+                      <div key={av.id} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-xs font-mono space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-white">{av.product_name}</span>
+                          <span className="text-teal-400 text-[10px]">{av.brand}</span>
+                        </div>
+                        <div className="text-slate-400 text-[10px] flex items-center justify-between">
+                          <span>Kullanıcı / Koltuk:</span>
+                          <span className="text-purple-300 font-bold">{av.user_count || 1} Koltuk</span>
+                        </div>
+                        {av.portal_url && (
+                          <div className="text-slate-400 text-[10px] truncate">
+                            <span className="text-slate-500">Panel: </span>
+                            <span className="text-blue-400">{av.portal_url}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 7. If Mail / Cloud */}
+                {activeSelected.category === 'cloud' && (
+                  <div className="space-y-2">
+                    {activeSelected.data && activeSelected.data.map(ms => (
+                      <div key={ms.id} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-xs font-mono space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-white">{ms.service_name}</span>
+                          <span className="text-blue-400 text-[10px]">{ms.service_type}</span>
+                        </div>
+                        <div className="text-slate-400 text-[10px]">Domain: {ms.domain_name}</div>
                       </div>
                     ))}
                   </div>
