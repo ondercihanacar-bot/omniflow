@@ -3,6 +3,7 @@ import { Shield, Plus, Search, Edit2, Trash2, Globe, ExternalLink, Key, Lock, Ch
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
 import { getDaysRemaining, getLicenseStatus } from '../utils/licenseAlerts';
+import { openWebPanel } from '../utils/launcher';
 
 export default function FirewallsTab({ firewalls = [], onAdd, onEdit, onDelete }) {
   const [search, setSearch] = useState('');
@@ -137,22 +138,18 @@ export default function FirewallsTab({ firewalls = [], onAdd, onEdit, onDelete }
                     {/* Management Web UI IP */}
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400">Arayüz IP / Link:</span>
-                      <div className="flex items-center gap-1 font-mono text-white font-semibold">
+                      <div className="flex items-center gap-1.5 font-mono text-white font-semibold">
                         <span>{f.management_ip || '-'}</span>
                         {f.management_ip && (
                           <>
+                            <button
+                              onClick={() => openWebPanel(f.management_ip, f.password, f.username)}
+                              className="px-1.5 py-0.5 rounded bg-rose-600/30 text-rose-300 border border-rose-500/40 hover:bg-rose-600/50 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                              title="Firewall panelini yeni sekmede aç ve parolayı panoya kopyala"
+                            >
+                              <span>🌐 Panele Git</span>
+                            </button>
                             <CopyButton text={f.management_ip} />
-                            {f.management_ip.startsWith('http') && (
-                              <a
-                                href={f.management_ip}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-slate-400 hover:text-rose-300 p-0.5 ml-0.5"
-                                title="Arayüzü Yeni Sekmede Aç"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                            )}
                           </>
                         )}
                       </div>
@@ -210,8 +207,15 @@ export default function FirewallsTab({ firewalls = [], onAdd, onEdit, onDelete }
                 {f.ssl_vpn_portal && (
                   <div className="mt-2.5 p-2 rounded-lg bg-slate-800/30 border border-slate-800 flex items-center justify-between text-xs font-mono">
                     <span className="text-slate-400 text-[11px]">SSL VPN Portalı:</span>
-                    <div className="flex items-center gap-1 text-rose-300">
+                    <div className="flex items-center gap-1.5 text-rose-300">
                       <span>{f.ssl_vpn_portal}</span>
+                      <button
+                        onClick={() => openWebPanel(f.ssl_vpn_portal)}
+                        className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 hover:text-white text-[10px] flex items-center gap-1 cursor-pointer"
+                        title="SSL VPN Portalını Yeni Sekmede Aç"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
                       <CopyButton text={f.ssl_vpn_portal} />
                     </div>
                   </div>

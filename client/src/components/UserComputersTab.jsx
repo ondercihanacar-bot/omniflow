@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import {
   Laptop, Plus, Search, Edit2, Trash2, Key, Wifi, Network,
   User, Monitor, ShieldCheck, Building2, Filter, Table, LayoutGrid, Shield, Printer,
-  Zap, FileText
+  Zap, FileText, QrCode, Tag
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
 import ComputerCollectorModal from './ComputerCollectorModal';
 import HandoverModal from './HandoverModal';
+import AssetTagModal from './AssetTagModal';
+import { launchAnyDesk } from '../utils/launcher';
 
 export default function UserComputersTab({
   customer,
@@ -32,10 +34,17 @@ export default function UserComputersTab({
   const [isCollectorModalOpen, setIsCollectorModalOpen] = useState(false);
   const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
   const [handoverSelectedPC, setHandoverSelectedPC] = useState(null);
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+  const [selectedDeviceForTag, setSelectedDeviceForTag] = useState(null);
 
   const handleOpenHandover = (pc = null) => {
     setHandoverSelectedPC(pc || (computers.length > 0 ? computers[0] : null));
     setIsHandoverModalOpen(true);
+  };
+
+  const handleOpenTagModal = (pc = null) => {
+    setSelectedDeviceForTag(pc);
+    setIsTagModalOpen(true);
   };
 
   const handleSetViewMode = (mode) => {
@@ -163,6 +172,15 @@ export default function UserComputersTab({
             <span>📄 Zimmet Tutanağı</span>
           </button>
 
+          <button
+            onClick={() => handleOpenTagModal(computers.length > 0 ? computers[0] : null)}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-xs font-bold rounded-lg border border-blue-500/40 transition-colors cursor-pointer shrink-0 shadow-sm"
+            title="Kullanıcı bilgisayarları için QR kodlu varlık etiketi basımı (Termal & A4)"
+          >
+            <QrCode className="w-3.5 h-3.5 text-blue-400" />
+            <span>🏷️ QR Etiket Bas</span>
+          </button>
+
           {onOpenReport && (
             <button
               onClick={onOpenReport}
@@ -246,6 +264,13 @@ export default function UserComputersTab({
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => handleOpenTagModal(c)}
+                    title="Bu cihaz için akıllı QR kodlu etiket bas"
+                    className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <QrCode className="w-3.5 h-3.5 text-blue-400" />
+                  </button>
                   <button
                     onClick={() => handleOpenHandover(c)}
                     title="Bu bilgisayar ve personel için resmi Zimmet Tutanağı oluştur"
@@ -368,8 +393,15 @@ export default function UserComputersTab({
                 {c.remote_access_id && (
                   <div className="flex items-center justify-between gap-2 bg-slate-950/60 px-2 py-1 rounded border border-slate-800/80">
                     <span className="text-[10px] text-amber-400 font-semibold uppercase">Uzak Destek:</span>
-                    <div className="flex items-center gap-1 font-mono text-xs text-amber-300 font-bold">
-                      <span>{c.remote_access_id}</span>
+                    <div className="flex items-center gap-1.5 font-mono text-xs text-amber-300 font-bold">
+                      <button
+                        onClick={() => launchAnyDesk(c.remote_access_id)}
+                        className="flex items-center gap-1 hover:text-white transition-colors cursor-pointer group"
+                        title="AnyDesk uygulamasını doğrudan bu ID ile başlat"
+                      >
+                        <span className="group-hover:underline">{c.remote_access_id}</span>
+                        <span className="text-[9px] px-1.5 py-0.2 bg-rose-600/30 text-rose-300 rounded border border-rose-500/40">🚀 Başlat</span>
+                      </button>
                       <CopyButton text={c.remote_access_id} title="AnyDesk/Uzak ID Kopyala" />
                     </div>
                   </div>

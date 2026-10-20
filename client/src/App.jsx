@@ -32,6 +32,9 @@ import KnowledgeBaseTab from './components/KnowledgeBaseTab';
 import KnowledgeBaseModal from './components/KnowledgeBaseModal';
 import ConfirmDialog from './components/ConfirmDialog';
 import CopyButton from './components/CopyButton';
+import DeleteCustomerSecurityModal from './components/DeleteCustomerSecurityModal';
+import DisasterVaultModal from './components/DisasterVaultModal';
+import SecurityAuditModal from './components/SecurityAuditModal';
 import { exportCustomerToExcel } from './utils/exporter';
 import {
   getDaysRemaining, getLicenseStatus, playAlertChime, getSoundEnabled,
@@ -41,7 +44,7 @@ import { checkPermission } from './utils/permissions';
 import {
   Building2, Globe, Phone, Mail, Edit, Trash2, LayoutDashboard,
   Server, Cloud, Laptop, Shield, ShieldCheck, Database, Plus, RefreshCw,
-  Network, FileSpreadsheet, Printer, Wifi, BookOpen, Lock, Key, AlertCircle
+  Network, FileSpreadsheet, Printer, Wifi, BookOpen, Lock, Key, AlertCircle, Award
 } from 'lucide-react';
 import { useLanguage } from './context/LanguageContext';
 
@@ -100,6 +103,9 @@ export default function App() {
   const [isLicenseAlertModalOpen, setIsLicenseAlertModalOpen] = useState(false);
   const [isOmniHubLicenseModalOpen, setIsOmniHubLicenseModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [isDeleteSecurityModalOpen, setIsDeleteSecurityModalOpen] = useState(false);
+  const [isDisasterVaultModalOpen, setIsDisasterVaultModalOpen] = useState(false);
+  const [isSecurityAuditModalOpen, setIsSecurityAuditModalOpen] = useState(false);
   const [licenseAlerts, setLicenseAlerts] = useState([]);
   const hasPlayedAlertSound = useRef(false);
 
@@ -363,29 +369,12 @@ export default function App() {
   };
 
   const handleDeleteCustomer = (cust) => {
-    const requireAdmin = localStorage.getItem('itmanager_require_admin_delete') === 'true';
-    if (requireAdmin && !isAdminLoggedIn) {
-      alert('Müşteri ve ilişkili tüm kayıtları silmek için Yönetici Girişi gereklidir. Lütfen sağ üstteki Ayarlar menüsünden yönetici şifrenizle giriş yapın.');
-      setIsSettingsModalOpen(true);
+    const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.username === 'admin');
+    if (!isAdmin) {
+      alert('Yetkisiz İşlem: Müşteriyi ve tüm ilişkili alt envanterini silme yetkisi sadece Sistem Yöneticisine (Admin) aittir.');
       return;
     }
-
-    setConfirmDialog({
-      isOpen: true,
-      title: 'Müşteriyi Sil',
-      message: `"${cust.name}" adlı müşteriyi ve müşteriye ait TÜM sunucu, VM, bilgisayar, firewall ve yedekleme cihazı kayıtlarını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
-      onConfirm: async () => {
-        try {
-          await api.deleteCustomer(cust.id);
-          setConfirmDialog({ isOpen: false });
-          setSelectedCustomerId(null);
-          await loadCustomers();
-          await loadStats();
-        } catch (err) {
-          alert(err.message);
-        }
-      }
-    });
+    setIsDeleteSecurityModalOpen(true);
   };
 
   // ---------------- Internet Lines & Branches CRUD ----------------
@@ -1280,6 +1269,26 @@ export default function App() {
                       </>
                     )}
 
+                    {/* Felaket Kurtarma Çantası (Offline AES-256 Kasa) */}
+                    <button
+                      onClick={() => setIsDisasterVaultModalOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 text-xs font-bold rounded-lg border border-purple-800/60 hover:border-purple-600 transition-all cursor-pointer shadow-sm"
+                      title="İnternet koptuğunda dahi çalışan şifreli tek dosya kurtarma kasasını indir"
+                    >
+                      <Shield className="w-3.5 h-3.5 text-purple-400" />
+                      <span>🔮 Felaket Çantası</span>
+                    </button>
+
+                    {/* Güvenlik & Risk Karnesi */}
+                    <button
+                      onClick={() => setIsSecurityAuditModalOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 text-xs font-bold rounded-lg border border-emerald-800/60 hover:border-emerald-600 transition-all cursor-pointer shadow-sm"
+                      title="Yöneticiye sunulabilir resmi IT Güvenlik ve Risk Karnesini görüntüle / yazdır"
+                    >
+                      <Award className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>🛡️ Güvenlik Karnesi</span>
+                    </button>
+
                     {checkPermission(currentUser, 'edit') && (
                       <button
                         onClick={() => {
@@ -1293,10 +1302,12 @@ export default function App() {
                       </button>
                     )}
 
-                    {checkPermission(currentUser, 'delete') && (
+                    {/* Sadece Admin Silebilmeli - 2 Aşamalı Güvenlik Kilidi */}
+                    {currentUser && (currentUser.role === 'admin' || currentUser.username === 'admin') && (
                       <button
                         onClick={() => handleDeleteCustomer(customerData)}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 hover:border-rose-900 transition-colors cursor-pointer"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 text-xs font-bold rounded-lg border border-rose-800/60 hover:border-rose-600 transition-all cursor-pointer shadow-sm"
+                        title="Sadece Yönetici (Admin) Yetkisiyle 2 Aşamalı Parola Korumasıyla Silinebilir"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-rose-400" />
                         <span>{t('tabs.deleteCustomer')}</span>
@@ -2076,6 +2087,33 @@ export default function App() {
         isOpen={isOmniHubLicenseModalOpen}
         onClose={() => setIsOmniHubLicenseModalOpen(false)}
         onUpdated={loadOmniLicense}
+      />
+
+      {/* 2 Aşamalı Güvenlik Korumalı Müşteri Silme Modalı (Sadece Admin + Parola) */}
+      <DeleteCustomerSecurityModal
+        isOpen={isDeleteSecurityModalOpen}
+        onClose={() => setIsDeleteSecurityModalOpen(false)}
+        customer={customerData}
+        currentUser={currentUser}
+        onSuccess={async (deletedCust) => {
+          setSelectedCustomerId(null);
+          await loadCustomers();
+          await loadStats();
+        }}
+      />
+
+      {/* Felaket Kurtarma Çantası (Offline AES-256 Kasa) */}
+      <DisasterVaultModal
+        isOpen={isDisasterVaultModalOpen}
+        onClose={() => setIsDisasterVaultModalOpen(false)}
+        customer={customerData}
+      />
+
+      {/* Müşteri IT Sağlık & Güvenlik Karnesi (Risk Audit) */}
+      <SecurityAuditModal
+        isOpen={isSecurityAuditModalOpen}
+        onClose={() => setIsSecurityAuditModalOpen(false)}
+        customer={customerData}
       />
     </div>
   );

@@ -87,12 +87,20 @@ export const api = {
     return res.json();
   },
 
-  deleteCustomer: async (id) => {
+  deleteCustomer: async (id, adminPassword = null) => {
+    const headers = {};
+    if (adminPassword) {
+      headers['x-admin-password'] = encodeURIComponent(adminPassword);
+      headers['Content-Type'] = 'application/json';
+    }
     const res = await authFetch(`${API_BASE}/customers/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers,
+      body: adminPassword ? JSON.stringify({ adminPassword }) : undefined
     });
-    if (!res.ok) throw new Error('Müşteri silinemedi');
-    return res.json();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Müşteri silinemedi');
+    return data;
   },
 
   // Physical Servers

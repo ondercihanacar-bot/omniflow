@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   Cloud, Plus, Search, Edit2, Trash2, Key, Cpu, HardDrive,
-  CheckCircle2, Server, Table, LayoutGrid, Network, Info, Shield
+  CheckCircle2, Server, Table, LayoutGrid, Network, Info, Shield, Monitor
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
+import { downloadRdpFile } from '../utils/launcher';
 
 export default function VirtualMachinesTab({ vms = [], physicalServers = [], onAdd, onEdit, onDelete }) {
   const [search, setSearch] = useState('');
@@ -190,7 +191,16 @@ export default function VirtualMachinesTab({ vms = [], physicalServers = [], onA
                   {v.ip_address ? (
                     <div className="flex items-center justify-between font-mono text-xs text-white">
                       <span className="font-bold text-blue-300">{v.ip_address}</span>
-                      <CopyButton text={v.ip_address} title="IP Kopyala" />
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => downloadRdpFile(v.ip_address, v.local_admin_user, v.vm_name)}
+                          className="px-1.5 py-0.5 rounded bg-blue-600/30 text-blue-300 border border-blue-500/40 hover:bg-blue-600/50 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                          title="RDP dosyasını indirip MSTSC ile doğrudan bağlan"
+                        >
+                          <span>💻 RDP</span>
+                        </button>
+                        <CopyButton text={v.ip_address} title="IP Kopyala" />
+                      </div>
                     </div>
                   ) : (
                     <span className="text-slate-500 text-[11px] italic">IP Yok</span>
@@ -338,9 +348,16 @@ export default function VirtualMachinesTab({ vms = [], physicalServers = [], onA
                     {/* Network IP & MAC */}
                     <td className="py-3 px-3.5 font-mono">
                       {v.ip_address ? (
-                        <div className="flex items-center gap-1 text-slate-200">
+                        <div className="flex items-center gap-1.5 text-slate-200">
                           <span className="text-slate-400 text-[11px]">IP:</span>
                           <span className="font-bold text-blue-300">{v.ip_address}</span>
+                          <button
+                            onClick={() => downloadRdpFile(v.ip_address, v.local_admin_user, v.vm_name)}
+                            className="px-1.5 py-0.2 rounded bg-blue-600/30 text-blue-300 border border-blue-500/40 hover:bg-blue-600/50 text-[9px] font-bold cursor-pointer"
+                            title="RDP bağlantı dosyasını indir ve MSTSC ile aç"
+                          >
+                            💻 RDP
+                          </button>
                           <CopyButton text={v.ip_address} title="IP Kopyala" />
                         </div>
                       ) : (

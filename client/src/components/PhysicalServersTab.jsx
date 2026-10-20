@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   Server, Plus, Search, Edit2, Trash2, Cpu, HardDrive, Network,
-  Key, Layers, CheckCircle2, AlertCircle, Building2, Table, LayoutGrid, Shield
+  Key, Layers, CheckCircle2, AlertCircle, Building2, Table, LayoutGrid, Shield, Globe
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
+import { openWebPanel } from '../utils/launcher';
 
 export default function PhysicalServersTab({ servers = [], onAdd, onEdit, onDelete }) {
   const [search, setSearch] = useState('');
@@ -211,6 +212,13 @@ export default function PhysicalServersTab({ servers = [], onAdd, onEdit, onDele
                 {s.management_ip ? (
                   <div className="flex items-center gap-2 font-mono">
                     <span className="font-semibold text-indigo-300">{s.management_ip}</span>
+                    <button
+                      onClick={() => openWebPanel(s.management_ip, s.management_password, s.management_user)}
+                      className="px-1.5 py-0.5 rounded bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-600/50 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                      title="iDRAC/iLO panelini yeni sekmede aç ve parolayı panoya kopyala"
+                    >
+                      <span>🌐 Panele Git</span>
+                    </button>
                     <CopyButton text={s.management_ip} title="Yönetim IP" />
                     {s.management_user && (
                       <span className="text-[10px] bg-slate-950 px-1.5 py-0.5 rounded text-slate-300 border border-slate-800">
@@ -335,9 +343,16 @@ export default function PhysicalServersTab({ servers = [], onAdd, onEdit, onDele
                     {/* Management iDRAC/iLO */}
                     <td className="py-3 px-3.5 space-y-1">
                       {s.management_ip ? (
-                        <div className="flex items-center gap-1 font-mono text-indigo-300">
+                        <div className="flex items-center gap-1.5 font-mono text-indigo-300">
                           <span className="text-slate-500 text-[11px]">IP:</span>
                           <span className="font-medium">{s.management_ip}</span>
+                          <button
+                            onClick={() => openWebPanel(s.management_ip, s.management_password, s.management_user)}
+                            className="px-1.5 py-0.2 rounded bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-600/50 text-[9px] font-bold cursor-pointer"
+                            title="iDRAC/iLO panelini yeni sekmede aç ve parolayı kopyala"
+                          >
+                            🌐 Git
+                          </button>
                           <CopyButton text={s.management_ip} />
                         </div>
                       ) : (
