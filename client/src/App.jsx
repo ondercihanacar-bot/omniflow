@@ -1971,6 +1971,7 @@ export default function App() {
       {/* Antivirus License Modal */}
       <AntivirusModal
         isOpen={isAntivirusModalOpen}
+        antivirus={editingAntivirus}
         license={editingAntivirus}
         customerId={selectedCustomerId}
         branches={customerBranches}

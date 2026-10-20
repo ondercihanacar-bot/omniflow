@@ -184,11 +184,14 @@ export function parseAntivirusText(text) {
 export default function AntivirusModal({
   isOpen,
   antivirus,
+  license,
   customerId,
   branches = ['Merkez Ofis'],
   onClose,
   onSave
 }) {
+  const currentItem = antivirus || license;
+
   const [formData, setFormData] = useState({
     customer_id: customerId,
     brand: 'Kaspersky',
@@ -211,12 +214,12 @@ export default function AntivirusModal({
   const [smartDetectionMsg, setSmartDetectionMsg] = useState(null);
 
   useEffect(() => {
-    if (antivirus) {
+    if (currentItem) {
       setFormData({
-        ...antivirus,
-        customer_id: antivirus.customer_id || customerId,
-        user_count: antivirus.user_count || 1,
-        license_term: antivirus.license_term || '1 Yıllık'
+        ...currentItem,
+        customer_id: currentItem.customer_id || customerId,
+        user_count: currentItem.user_count || 1,
+        license_term: currentItem.license_term || '1 Yıllık'
       });
     } else {
       setFormData({
@@ -239,7 +242,7 @@ export default function AntivirusModal({
     setShowManualPaste(false);
     setPasteInputText('');
     setSmartDetectionMsg(null);
-  }, [antivirus, customerId, isOpen, branches]);
+  }, [currentItem, customerId, isOpen, branches]);
 
   if (!isOpen) return null;
 
@@ -344,7 +347,7 @@ export default function AntivirusModal({
             </div>
             <div>
               <h3 className="text-base font-bold text-white">
-                {antivirus ? 'Antivirüs Lisansını Düzenle' : 'Yeni Antivirüs Lisansı Ekle'}
+                {currentItem ? 'Antivirüs Lisansını Düzenle' : 'Yeni Antivirüs Lisansı Ekle'}
               </h3>
               <p className="text-xs text-slate-400">Bulut panel bilgileri, kullanıcı sayısı ve lisans bitiş süresi</p>
             </div>
@@ -651,7 +654,7 @@ export default function AntivirusModal({
               className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-lg transition-colors cursor-pointer flex items-center gap-1.5"
             >
               <Check className="w-4 h-4" />
-              <span>{antivirus ? 'Değişiklikleri Kaydet' : 'Antivirüs Lisansı Ekle'}</span>
+              <span>{currentItem ? 'Değişiklikleri Kaydet' : 'Antivirüs Lisansı Ekle'}</span>
             </button>
           </div>
         </form>
