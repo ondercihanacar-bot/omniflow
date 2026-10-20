@@ -2,10 +2,16 @@ import React, { useState } from 'react';
 import {
   Shield, Plus, Globe, ExternalLink, User, Lock, Users,
   Calendar, Clock, Key, Edit, Trash2, LayoutGrid, Table,
-  AlertCircle, ShieldCheck, ShieldAlert, Copy, Eye, EyeOff
+  AlertCircle, ShieldCheck, ShieldAlert, Copy, Eye, EyeOff,
+  Volume2, VolumeX, AlertTriangle
 } from 'lucide-react';
 import CopyButton from './CopyButton';
-import { getDaysRemaining, getLicenseStatus } from '../utils/licenseAlerts';
+import {
+  getDaysRemaining,
+  getLicenseStatus,
+  playCriticalLicenseAlarm,
+  announceCriticalLicenseVoice
+} from '../utils/licenseAlerts';
 
 export default function AntivirusTab({
   licenses = [],
@@ -32,10 +38,16 @@ export default function AntivirusTab({
   };
 
   const totalSeats = licenses.reduce((sum, item) => sum + (Number(item.user_count) || 1), 0);
-  const urgentCount = licenses.filter(item => {
+
+  const processedLicenses = licenses.map(item => {
     const days = getDaysRemaining(item.license_expiry);
-    return getLicenseStatus(days).isUrgent;
-  }).length;
+    const status = getLicenseStatus(days);
+    return { ...item, daysRemaining: days, status };
+  });
+
+  const criticalCount = processedLicenses.filter(i => i.status.isCritical).length;
+  const warningCount = processedLicenses.filter(i => i.status.isWarning && !i.status.isCritical).length;
+  const urgentCount = criticalCount + warningCount;
 
   const getBrandBadge = (brand) => {
     const b = (brand || '').toLowerCase();
@@ -92,10 +104,16 @@ export default function AntivirusTab({
               <span className="px-2 py-0.5 rounded text-xs font-mono font-semibold bg-purple-950/80 text-purple-300 border border-purple-800">
                 {totalSeats} Toplam Kullanıcı / Koltuk
               </span>
-              {urgentCount > 0 && (
-                <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-rose-950 text-rose-300 border border-rose-800 animate-pulse flex items-center gap-1">
-                  <ShieldAlert className="w-3.5 h-3.5" />
-                  {urgentCount} Lisans Bitişi Yaklaştı!
+              {criticalCount > 0 && (
+                <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-rose-950 text-rose-200 border border-rose-500 animate-pulse flex items-center gap-1 shadow-sm">
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+                  🚨 {criticalCount} Kritik Lisans (15 Gün Kaldı!)
+                </span>
+              )}
+              {warningCount > 0 && criticalCount === 0 && (
+                <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-amber-950 text-amber-300 border border-amber-500 flex items-center gap-1 shadow-sm">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                  ⚠️ {warningCount} Lisans (Son 30 Gün)
                 </span>
               )}
             </div>
@@ -144,6 +162,55 @@ export default function AntivirusTab({
         </div>
       </div>
 
+      {/* 30 Gün ve 15 Gün Kritik Uyarı Banner'ı */}
+      {urgentCount > 0 && (
+        <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 animate-fadeIn ${
+          criticalCount > 0
+            ? 'bg-rose-950/60 border-rose-500/80 text-rose-200 shadow-lg shadow-rose-950/30'
+            : 'bg-amber-950/60 border-amber-500/80 text-amber-200 shadow-md shadow-amber-950/20'
+        }`}>
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2 rounded-lg shrink-0 ${
+              criticalCount > 0 ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'
+            }`}>
+              {criticalCount > 0 ? (
+                <ShieldAlert className="w-5 h-5 animate-pulse text-rose-400" />
+              ) : (
+                <AlertTriangle className="w-5 h-5 text-amber-400" />
+              )}
+            </div>
+            <div>
+              <h5 className="text-xs font-bold flex items-center gap-1.5">
+                <span>
+                  {criticalCount > 0
+                    ? `🚨 Kritik Lisans Alarmı: ${criticalCount} Lisansın Süresi 15 Gün veya Daha Az Kaldı!`
+                    : `⚠️ Lisans Takip Uyarısı: ${warningCount} Lisansın Süresi Son 30 Gün İçinde Dolacak`}
+                </span>
+              </h5>
+              <p className="text-[11px] opacity-80 mt-0.5">
+                {criticalCount > 0
+                  ? 'Uç nokta ve sunucu korumasının kesintiye uğramaması için lisansı acilen yenileyiniz.'
+                  : 'Süre bitiminden önce teklif alma ve lisans yenileme sürecini başlatmanız önerilir.'}
+              </p>
+            </div>
+          </div>
+          {criticalCount > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                playCriticalLicenseAlarm();
+                announceCriticalLicenseVoice(`${criticalCount} adet antivirüs`);
+              }}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-lg shadow-md transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+              title="Sesli Kritik Alarmı Çal"
+            >
+              <Volume2 className="w-3.5 h-3.5 animate-pulse" />
+              <span>Sesli Alarmı Çal</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Content Area */}
       {licenses.length === 0 ? (
         <div className="p-12 text-center bg-slate-900/50 border border-slate-800/80 rounded-2xl">
@@ -173,8 +240,12 @@ export default function AntivirusTab({
             return (
               <div
                 key={av.id}
-                className={`bg-slate-900 border rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-emerald-500/50 hover:shadow-lg ${
-                  status.isUrgent ? 'border-rose-600/80 shadow-rose-950/20 shadow-md' : 'border-slate-800'
+                className={`bg-slate-900 border rounded-2xl p-5 flex flex-col justify-between transition-all hover:shadow-lg ${
+                  status.isCritical
+                    ? 'border-rose-500 shadow-rose-950/40 shadow-lg ring-1 ring-rose-500/40'
+                    : status.isWarning
+                    ? 'border-amber-500/70 shadow-amber-950/20 shadow-md'
+                    : 'border-slate-800 hover:border-emerald-500/50'
                 }`}
               >
                 <div>
@@ -259,19 +330,40 @@ export default function AntivirusTab({
                     )}
                   </div>
 
-                  {/* License Expiry Status Banner */}
-                  <div className="mt-3 flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                  {/* License Expiry Status Banner (Highlighted Place 3) */}
+                  <div className={`mt-3 flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-950 border transition-all ${
+                    status.isCritical
+                      ? 'border-rose-500/60 bg-rose-950/25'
+                      : status.isWarning
+                      ? 'border-amber-500/50 bg-amber-950/20'
+                      : 'border-slate-800'
+                  }`}>
                     <div className="flex items-center gap-1.5 text-xs text-slate-400">
                       <Clock className="w-3.5 h-3.5 text-slate-500" />
                       <span>{av.license_term || '1 Yıllık'}</span>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       <Calendar className="w-3.5 h-3.5 text-slate-500" />
                       <span className="text-xs font-mono text-slate-200">{av.license_expiry || 'Süresiz'}</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${status.badgeClass}`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-all ${status.badgeClass}`}>
                         {status.shortLabel}
                       </span>
+                      {status.isCritical && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playCriticalLicenseAlarm();
+                            announceCriticalLicenseVoice(av.product_name || 'Antivirüs');
+                          }}
+                          title="Sesli Kritik Alarmı Çal"
+                          className="px-1.5 py-0.5 rounded bg-rose-900/80 hover:bg-rose-800 text-rose-200 border border-rose-500 text-[10px] font-semibold flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
+                        >
+                          <Volume2 className="w-3 h-3 text-rose-300 animate-pulse" />
+                          <span>Sesli Alarm</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -337,7 +429,16 @@ export default function AntivirusTab({
                   const isPasswordVisible = visiblePasswords[av.id];
 
                   return (
-                    <tr key={av.id} className="hover:bg-slate-800/40 transition-colors">
+                    <tr
+                      key={av.id}
+                      className={`transition-colors ${
+                        status.isCritical
+                          ? 'bg-rose-950/25 hover:bg-rose-950/35'
+                          : status.isWarning
+                          ? 'bg-amber-950/15 hover:bg-amber-950/25'
+                          : 'hover:bg-slate-800/40'
+                      }`}
+                    >
                       {/* Product Name (Sticky Left Column) */}
                       <td className="px-4 py-3 font-sans font-bold text-white sticky left-0 bg-slate-900 z-10">
                         <div className="flex items-center gap-2">
@@ -412,9 +513,24 @@ export default function AntivirusTab({
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="text-slate-200">{av.license_expiry || 'Süresiz'}</span>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${status.badgeClass}`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all ${status.badgeClass}`}>
                             {status.shortLabel}
                           </span>
+                          {status.isCritical && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                playCriticalLicenseAlarm();
+                                announceCriticalLicenseVoice(av.product_name || 'Antivirüs');
+                              }}
+                              title="Sesli Kritik Alarmı Çal"
+                              className="px-1.5 py-0.5 rounded bg-rose-900/80 hover:bg-rose-800 text-rose-200 border border-rose-500 text-[10px] font-semibold flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
+                            >
+                              <Volume2 className="w-3 h-3 text-rose-300 animate-pulse" />
+                              <span className="text-[9px]">Alarm</span>
+                            </button>
+                          )}
                         </div>
                       </td>
 

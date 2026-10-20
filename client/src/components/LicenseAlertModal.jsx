@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import {
   getDaysRemaining, getLicenseStatus, playAlertChime,
+  playCriticalLicenseAlarm, announceCriticalLicenseVoice,
   getSoundEnabled, setSoundEnabled
 } from '../utils/licenseAlerts';
 
@@ -216,9 +217,9 @@ export default function LicenseAlertModal({
             </button>
           </div>
 
-          <div className="text-xs text-slate-400 font-mono flex items-center gap-1">
+          <div className="text-xs text-slate-400 font-mono flex items-center gap-2">
             <Clock className="w-3.5 h-3.5 text-slate-500" />
-            <span>Kritik Eşik: &le;15 Gün</span>
+            <span>Uyarı: &le;30 Gün • Kritik Alarm: &le;15 Gün</span>
           </div>
         </div>
 
@@ -229,7 +230,7 @@ export default function LicenseAlertModal({
               <ShieldAlert className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
               <div>
                 <span className="font-bold">Önemli Güvenlik Bildirimi:</span> Aşağıda listelenen{' '}
-                <strong>{urgentList.length}</strong> lisansın süresi dolmuş veya 15 gün içinde dolacaktır.
+                <strong>{urgentList.length}</strong> lisans son 30 gün içindedir (15 gün kala daha belirgin ve sesli alarm tetiklenir).
                 Lisans yenilenmediğinde antivirüs koruma imzaları veya firewall güvenlik filtreleri devre dışı kalabilir.
               </div>
             </div>

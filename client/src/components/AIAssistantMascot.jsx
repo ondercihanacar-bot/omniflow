@@ -32,7 +32,7 @@ export default function AIAssistantMascot({
 }) {
   const { t, language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
-  const [showSpeechBubble, setShowSpeechBubble] = useState(true);
+  const [showSpeechBubble, setShowSpeechBubble] = useState(false);
   const [speechText, setSpeechText] = useState('');
   const [isMinimized, setIsMinimized] = useState(false);
   const [robotAnimation, setRobotAnimation] = useState('idle'); // 'idle' | 'walk' | 'wink'
@@ -138,7 +138,7 @@ export default function AIAssistantMascot({
       : `Hoş geldin ${firstName}! Ben Optimus Prime. Sistem hazır, tüm sunucu ve cihazları senin için koruyorum.`;
 
     setSpeechText(welcomeMsg);
-    setShowSpeechBubble(true);
+    // Bubble stays closed by default until user clicks the robot
 
     let hasWelcomed = false;
     const performWelcome = () => {
@@ -320,8 +320,12 @@ export default function AIAssistantMascot({
 
       if (!dragStartRef.current.moved) {
         triggerWink();
-        setIsOpen(prev => !prev);
-        setShowSpeechBubble(false);
+        if (isOpen) {
+          setIsOpen(false);
+          setShowSpeechBubble(false);
+        } else {
+          setShowSpeechBubble(prev => !prev);
+        }
       }
     };
 
@@ -427,6 +431,17 @@ export default function AIAssistantMascot({
                 ) : (
                   <VolumeX className="w-3.5 h-3.5 text-rose-400" />
                 )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSpeechBubble(false);
+                  setIsOpen(true);
+                }}
+                className="p-0.5 text-slate-400 hover:text-cyan-300 rounded transition-colors"
+                title="Sistem Paneli ve Kısayollar"
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"

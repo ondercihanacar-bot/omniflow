@@ -12,6 +12,8 @@ export default function Navbar({
   stats,
   onOpenSearch,
   urgentLicenseCount = 0,
+  criticalLicenseCount = 0,
+  warningLicenseCount = 0,
   onOpenLicenseAlerts,
   isKBView = false,
   onToggleKBView,
@@ -132,12 +134,11 @@ export default function Navbar({
           </button>
         )}
 
-        {/* NOC License Alert Beacon */}
-        {/* NOC License Alert Beacon */}
-        {urgentLicenseCount > 0 ? (
+        {/* NOC License Alert Beacon: 30 gün uyarı (Amber) vs 15 gün kritik & sesli alarm (Pulsing Rose) */}
+        {criticalLicenseCount > 0 ? (
           <button
             onClick={onOpenLicenseAlerts}
-            title={`${urgentLicenseCount} ${t('navbar.licenseUrgentAlert')}`}
+            title={`🚨 ${criticalLicenseCount} Kritik Lisans (15 gün veya daha az kaldı!) - Toplam ${urgentLicenseCount} bildirim`}
             className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-950/90 hover:bg-rose-900 border border-rose-500 text-rose-200 text-xs font-bold transition-all shadow-lg shadow-rose-950/50 cursor-pointer animate-pulse"
           >
             <span className="relative flex h-2 w-2">
@@ -147,6 +148,20 @@ export default function Navbar({
             <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" />
             <span className="font-mono">{urgentLicenseCount}</span>
             <span className="hidden sm:inline">{t('navbar.licenseBadge')}</span>
+          </button>
+        ) : (warningLicenseCount > 0 || urgentLicenseCount > 0) ? (
+          <button
+            onClick={onOpenLicenseAlerts}
+            title={`⚠️ ${warningLicenseCount || urgentLicenseCount} Lisans Uyarısı (Son 30 gün içinde dolacak)`}
+            className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-950/90 hover:bg-amber-900 border border-amber-500 text-amber-200 text-xs font-bold transition-all shadow-md shadow-amber-950/40 cursor-pointer"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-90"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+            <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="font-mono">{urgentLicenseCount || warningLicenseCount}</span>
+            <span className="hidden sm:inline">Lisans</span>
           </button>
         ) : (
           <button

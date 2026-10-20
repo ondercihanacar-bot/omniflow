@@ -33,7 +33,10 @@ import KnowledgeBaseModal from './components/KnowledgeBaseModal';
 import ConfirmDialog from './components/ConfirmDialog';
 import CopyButton from './components/CopyButton';
 import { exportCustomerToExcel } from './utils/exporter';
-import { getDaysRemaining, getLicenseStatus, playAlertChime, getSoundEnabled } from './utils/licenseAlerts';
+import {
+  getDaysRemaining, getLicenseStatus, playAlertChime, getSoundEnabled,
+  playCriticalLicenseAlarm, announceCriticalLicenseVoice
+} from './utils/licenseAlerts';
 import { checkPermission } from './utils/permissions';
 import {
   Building2, Globe, Phone, Mail, Edit, Trash2, LayoutDashboard,
@@ -250,12 +253,21 @@ export default function App() {
       const data = await api.getAllLicenseAlerts();
       setLicenseAlerts(data || []);
 
-      const urgentItems = (data || []).filter(f => {
+      const processed = (data || []).map(f => {
         const days = getDaysRemaining(f.license_expiry);
-        return getLicenseStatus(days).isUrgent;
+        return { ...f, daysRemaining: days, status: getLicenseStatus(days) };
       });
 
-      if (urgentItems.length > 0 && getSoundEnabled() && !hasPlayedAlertSound.current) {
+      const criticalItems = processed.filter(p => p.status.isCritical); // <= 15 days or expired
+      const warningItems = processed.filter(p => p.status.isWarning); // <= 30 days
+
+      if (criticalItems.length > 0 && getSoundEnabled() && !hasPlayedAlertSound.current) {
+        hasPlayedAlertSound.current = true;
+        setTimeout(() => {
+          playCriticalLicenseAlarm();
+          announceCriticalLicenseVoice(criticalItems.length);
+        }, 1200);
+      } else if (warningItems.length > 0 && getSoundEnabled() && !hasPlayedAlertSound.current) {
         hasPlayedAlertSound.current = true;
         setTimeout(() => {
           playAlertChime();
@@ -908,20 +920,51 @@ export default function App() {
     setActiveTab(tab);
   };
 
-  const urgentLicenseAlerts = licenseAlerts.filter(f => {
+  const processedLicenseAlerts = licenseAlerts.map(f => {
     const days = getDaysRemaining(f.license_expiry);
-    return getLicenseStatus(days).isUrgent;
+    const status = getLicenseStatus(days);
+    return { ...f, daysRemaining: days, status };
   });
 
-  const currentCustomerHasExpiringFirewall = (customerData?.firewalls || []).some(f => {
-    const days = getDaysRemaining(f.license_expiry);
-    return getLicenseStatus(days).isUrgent;
-  });
+  const criticalLicenseAlerts = processedLicenseAlerts.filter(f => f.status.isCritical);
+  const warningLicenseAlerts = processedLicenseAlerts.filter(f => f.status.isWarning && !f.status.isCritical);
+  const urgentLicenseAlerts = processedLicenseAlerts.filter(f => f.status.isUrgent);
 
-  const currentCustomerHasExpiringAntivirus = (customerData?.antivirus_licenses || []).some(a => {
+  // Per-customer license tracking: Antivirus
+  const currentCustomerAntivirusList = (customerData?.antivirus_licenses || []).map(a => {
     const days = getDaysRemaining(a.license_expiry);
-    return getLicenseStatus(days).isUrgent;
+    return { ...a, daysRemaining: days, status: getLicenseStatus(days) };
   });
+  const currentCustomerHasCriticalAntivirus = currentCustomerAntivirusList.some(a => a.status.isCritical);
+  const currentCustomerHasWarningAntivirus = currentCustomerAntivirusList.some(a => a.status.isWarning && !a.status.isCritical);
+  const currentCustomerHasExpiringAntivirus = currentCustomerHasCriticalAntivirus || currentCustomerHasWarningAntivirus;
+
+  // Per-customer license tracking: Firewall
+  const currentCustomerFirewallList = (customerData?.firewalls || []).map(f => {
+    const days = getDaysRemaining(f.license_expiry);
+    return { ...f, daysRemaining: days, status: getLicenseStatus(days) };
+  });
+  const currentCustomerHasCriticalFirewall = currentCustomerFirewallList.some(f => f.status.isCritical);
+  const currentCustomerHasWarningFirewall = currentCustomerFirewallList.some(f => f.status.isWarning && !f.status.isCritical);
+  const currentCustomerHasExpiringFirewall = currentCustomerHasCriticalFirewall || currentCustomerHasWarningFirewall;
+
+  // Single-fire audio warning per customer load when critical license <= 15 days exists
+  const playedCustomerAlarmRef = useRef({});
+  useEffect(() => {
+    if (!customerData?.id) return;
+    if ((currentCustomerHasCriticalAntivirus || currentCustomerHasCriticalFirewall) && getSoundEnabled()) {
+      if (!playedCustomerAlarmRef.current[customerData.id]) {
+        playedCustomerAlarmRef.current[customerData.id] = true;
+        setTimeout(() => {
+          playCriticalLicenseAlarm();
+          const avProduct = currentCustomerAntivirusList.find(a => a.status.isCritical)?.product_name;
+          const fwName = currentCustomerFirewallList.find(f => f.status.isCritical)?.device_name;
+          const target = avProduct || fwName || customerData.name;
+          announceCriticalLicenseVoice(target);
+        }, 900);
+      }
+    }
+  }, [customerData?.id, currentCustomerHasCriticalAntivirus, currentCustomerHasCriticalFirewall]);
 
   if (!currentUser) {
     return <AuthScreen onLoginSuccess={handleLoginSuccess} />;
@@ -934,6 +977,8 @@ export default function App() {
         stats={stats}
         onOpenSearch={() => setIsSearchModalOpen(true)}
         urgentLicenseCount={urgentLicenseAlerts.length}
+        criticalLicenseCount={criticalLicenseAlerts.length}
+        warningLicenseCount={warningLicenseAlerts.length}
         onOpenLicenseAlerts={() => setIsLicenseAlertModalOpen(true)}
         isKBView={viewMode === 'kb'}
         onToggleKBView={() => setViewMode(prev => prev === 'kb' ? 'customer' : 'kb')}
@@ -1138,17 +1183,35 @@ export default function App() {
               <div className="bg-slate-900/90 border border-slate-800/90 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-sm">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-600/20 to-indigo-600/20 text-blue-400 border border-blue-500/30 rounded-xl shrink-0 mt-0.5">
-                      <Building2 className="w-5 h-5 sm:w-7 sm:h-7" />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('overview')}
+                      title="Müşteri Ana Ekranı / Genel Bakış (İşlemlere Devam Et)"
+                      className={`p-2 sm:p-3 rounded-xl shrink-0 mt-0.5 transition-all cursor-pointer group flex items-center justify-center ${
+                        activeTab === 'overview'
+                          ? 'bg-gradient-to-br from-blue-600/30 to-indigo-600/30 text-blue-300 border-2 border-blue-400 shadow-lg shadow-blue-900/40 ring-2 ring-blue-500/30'
+                          : 'bg-gradient-to-br from-blue-600/20 to-indigo-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600/35 hover:border-blue-400 hover:text-white hover:scale-105 shadow-sm'
+                      }`}
+                    >
+                      <Building2 className="w-5 h-5 sm:w-7 sm:h-7 group-hover:scale-110 transition-transform" />
+                    </button>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {customerData.code && (
-                          <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-slate-800 text-blue-400 border border-slate-700">
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('overview')}
+                            title="Genel Bakışa Dön"
+                            className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-slate-800 text-blue-400 border border-slate-700 cursor-pointer hover:bg-slate-700 hover:text-white transition-colors"
+                          >
                             {customerData.code}
-                          </span>
+                          </button>
                         )}
-                        <h2 className="text-xl font-extrabold text-white tracking-tight">
+                        <h2
+                          onClick={() => setActiveTab('overview')}
+                          title="Müşteri Ana Ekranına Dön (Genel Bakış)"
+                          className="text-xl font-extrabold text-white tracking-tight cursor-pointer hover:text-blue-300 transition-colors"
+                        >
                           {customerData.name}
                         </h2>
                       </div>
@@ -1333,48 +1396,110 @@ export default function App() {
                   {checkPermission(currentUser, 'module', 'firewalls') && (
                     <button
                       onClick={() => setActiveTab('firewalls')}
-                      title={t('tabs.firewalls')}
+                      title={
+                        currentCustomerHasCriticalFirewall
+                          ? '🚨 KRİTİK: 15 günden az kalan güvenlik duvarı lisansı var!'
+                          : currentCustomerHasWarningFirewall
+                          ? '⚠️ UYARI: Son 30 gün içinde süresi dolacak güvenlik duvarı lisansı var'
+                          : t('tabs.firewalls')
+                      }
                       className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all shrink-0 cursor-pointer relative ${
                         activeTab === 'firewalls'
-                          ? 'bg-rose-600 text-white shadow-sm'
+                          ? currentCustomerHasCriticalFirewall
+                            ? 'bg-rose-700 text-white shadow-md shadow-rose-950/50'
+                            : currentCustomerHasWarningFirewall
+                            ? 'bg-amber-600 text-white shadow-sm'
+                            : 'bg-rose-600 text-white shadow-sm'
+                          : currentCustomerHasCriticalFirewall
+                          ? 'text-rose-300 hover:text-white hover:bg-rose-950/60 border border-rose-600/70 animate-pulse'
+                          : currentCustomerHasWarningFirewall
+                          ? 'text-amber-300 hover:text-white hover:bg-amber-950/60 border border-amber-600/70'
                           : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
                       }`}
                     >
-                      <Shield className="w-3.5 h-3.5" />
+                      <Shield className={`w-3.5 h-3.5 ${
+                        currentCustomerHasCriticalFirewall
+                          ? 'text-rose-300'
+                          : currentCustomerHasWarningFirewall
+                          ? 'text-amber-400'
+                          : 'text-rose-400'
+                      }`} />
                       <span>{t('tabs.firewalls')}</span>
-                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-rose-950 text-rose-300 border border-rose-800">
+                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono border ${
+                        currentCustomerHasCriticalFirewall
+                          ? 'bg-rose-950 text-rose-200 border-rose-600 font-bold'
+                          : currentCustomerHasWarningFirewall
+                          ? 'bg-amber-950 text-amber-300 border-amber-600 font-bold'
+                          : 'bg-rose-950 text-rose-300 border-rose-800'
+                      }`}>
                         {(customerData.firewalls || []).length}
                       </span>
-                      {currentCustomerHasExpiringFirewall && (
-                        <span className="relative flex h-2 w-2" title="Lisans Bitişi Yaklaşan Güvenlik Duvarı!">
+                      {currentCustomerHasCriticalFirewall ? (
+                        <span className="relative flex h-2 w-2" title="🚨 Kritik: 15 günden az kaldı!">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-90"></span>
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                         </span>
-                      )}
+                      ) : currentCustomerHasWarningFirewall ? (
+                        <span className="relative flex h-2 w-2" title="⚠️ Uyarı: Son 30 gün!">
+                          <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-90"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        </span>
+                      ) : null}
                     </button>
                   )}
 
                   {checkPermission(currentUser, 'module', 'antivirus') && (
                     <button
                       onClick={() => setActiveTab('antivirus')}
-                      title={t('tabs.antivirus')}
+                      title={
+                        currentCustomerHasCriticalAntivirus
+                          ? '🚨 KRİTİK: 15 günden az kalan antivirüs lisansı var!'
+                          : currentCustomerHasWarningAntivirus
+                          ? '⚠️ UYARI: Son 30 gün içinde süresi dolacak antivirüs lisansı var'
+                          : t('tabs.antivirus')
+                      }
                       className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all shrink-0 cursor-pointer relative ${
                         activeTab === 'antivirus'
-                          ? 'bg-teal-600 text-white shadow-sm'
+                          ? currentCustomerHasCriticalAntivirus
+                            ? 'bg-rose-700 text-white shadow-md shadow-rose-950/50'
+                            : currentCustomerHasWarningAntivirus
+                            ? 'bg-amber-600 text-white shadow-sm'
+                            : 'bg-teal-600 text-white shadow-sm'
+                          : currentCustomerHasCriticalAntivirus
+                          ? 'text-rose-300 hover:text-white hover:bg-rose-950/60 border border-rose-600/70 animate-pulse'
+                          : currentCustomerHasWarningAntivirus
+                          ? 'text-amber-300 hover:text-white hover:bg-amber-950/60 border border-amber-600/70'
                           : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
                       }`}
                     >
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <ShieldCheck className={`w-3.5 h-3.5 ${
+                        currentCustomerHasCriticalAntivirus
+                          ? 'text-rose-300'
+                          : currentCustomerHasWarningAntivirus
+                          ? 'text-amber-400'
+                          : 'text-emerald-400'
+                      }`} />
                       <span>{t('tabs.antivirus')}</span>
-                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-teal-950 text-teal-300 border border-teal-800">
+                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono border ${
+                        currentCustomerHasCriticalAntivirus
+                          ? 'bg-rose-950 text-rose-200 border-rose-600 font-bold'
+                          : currentCustomerHasWarningAntivirus
+                          ? 'bg-amber-950 text-amber-300 border-amber-600 font-bold'
+                          : 'bg-teal-950 text-teal-300 border-teal-800'
+                      }`}>
                         {(customerData.antivirus_licenses || []).length}
                       </span>
-                      {currentCustomerHasExpiringAntivirus && (
-                        <span className="relative flex h-2 w-2" title="Lisans Bitişi Yaklaşan Antivirüs!">
+                      {currentCustomerHasCriticalAntivirus ? (
+                        <span className="relative flex h-2 w-2" title="🚨 Kritik: 15 günden az kaldı!">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-90"></span>
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                         </span>
-                      )}
+                      ) : currentCustomerHasWarningAntivirus ? (
+                        <span className="relative flex h-2 w-2" title="⚠️ Uyarı: Son 30 gün!">
+                          <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-90"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        </span>
+                      ) : null}
                     </button>
                   )}
 

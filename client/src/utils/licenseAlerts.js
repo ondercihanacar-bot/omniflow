@@ -54,8 +54,13 @@ export function getDaysRemaining(dateStr) {
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
 }
 
+import { speakRobotText } from './robotAudio';
+
 /**
  * Categorizes the license status based on remaining days
+ * - <= 30 days: Uyarı (Warning - Amber)
+ * - <= 15 days: Kritik / Belirgin Uyarı & Sesli Alarm (Critical - Pulsing Red + Audio)
+ * - > 30 days: Aktif / Normal (Emerald Green)
  * @param {number|null} days 
  */
 export function getLicenseStatus(days) {
@@ -66,7 +71,9 @@ export function getLicenseStatus(days) {
       shortLabel: 'Tarih Yok',
       badgeClass: 'bg-slate-800 text-slate-400 border-slate-700',
       borderClass: 'border-slate-800',
-      isUrgent: false
+      isUrgent: false,
+      isWarning: false,
+      isCritical: false
     };
   }
 
@@ -76,11 +83,13 @@ export function getLicenseStatus(days) {
       level: 'expired',
       days,
       label: `Süresi Doldu (${passed} gün önce)`,
-      shortLabel: `${passed} gün önce doldu`,
-      badgeClass: 'bg-rose-950 text-rose-300 border-rose-600 animate-pulse font-bold',
-      borderClass: 'border-rose-600/70',
+      shortLabel: `🚨 ${passed} gün önce doldu!`,
+      badgeClass: 'bg-rose-950 text-rose-200 border-rose-500 animate-pulse font-extrabold shadow-[0_0_14px_rgba(244,63,94,0.45)] ring-1 ring-rose-500/50',
+      borderClass: 'border-rose-500/80 shadow-rose-950/40 shadow-md',
       tagColor: 'rose',
       isUrgent: true,
+      isWarning: true,
+      isCritical: true,
       severity: 1
     };
   }
@@ -90,57 +99,52 @@ export function getLicenseStatus(days) {
       level: 'today',
       days,
       label: 'Bugün Bitiyor!',
-      shortLabel: 'Bugün bitiyor',
-      badgeClass: 'bg-rose-900 text-white border-rose-500 animate-pulse font-bold',
-      borderClass: 'border-rose-500',
+      shortLabel: '🚨 Bugün bitiyor!',
+      badgeClass: 'bg-rose-900 text-white border-rose-500 animate-pulse font-extrabold shadow-[0_0_14px_rgba(244,63,94,0.5)] ring-1 ring-rose-500/60',
+      borderClass: 'border-rose-500 shadow-rose-950/40 shadow-md',
       tagColor: 'rose',
       isUrgent: true,
+      isWarning: true,
+      isCritical: true,
       severity: 2
     };
   }
 
-  if (days <= 7) {
+  // 1 to 15 days: KRİTİK / ÇOK DAHA BELİRGİN SESLİ & GÖRSEL UYARI
+  if (days <= 15) {
     return {
       level: 'critical',
       days,
-      label: `Acil: ${days} Gün Kaldı`,
-      shortLabel: `${days} gün kaldı`,
-      badgeClass: 'bg-rose-950/80 text-rose-300 border-rose-700/80 font-bold',
-      borderClass: 'border-rose-700/60',
+      label: `🚨 Kritik: Son ${days} Gün Kaldı!`,
+      shortLabel: `🚨 ${days} gün kaldı!`,
+      badgeClass: 'bg-rose-950 text-rose-200 border-rose-500 animate-pulse font-extrabold shadow-[0_0_14px_rgba(244,63,94,0.45)] ring-1 ring-rose-500/50',
+      borderClass: 'border-rose-500 shadow-rose-950/40 shadow-lg ring-1 ring-rose-500/40',
       tagColor: 'rose',
       isUrgent: true,
+      isWarning: true,
+      isCritical: true,
       severity: 3
     };
   }
 
-  if (days <= 15) {
+  // 16 to 30 days: SON 30 GÜN UYARISI BAŞLASIN (AMBER / SARI-TURUNCU UYARI)
+  if (days <= 30) {
     return {
       level: 'warning',
       days,
-      label: `Uyarı: ${days} Gün Kaldı`,
-      shortLabel: `${days} gün kaldı`,
-      badgeClass: 'bg-amber-950/80 text-amber-300 border-amber-700/80 font-semibold',
-      borderClass: 'border-amber-700/60',
+      label: `⚠️ Uyarı: ${days} Gün Kaldı`,
+      shortLabel: `⚠️ ${days} gün kaldı`,
+      badgeClass: 'bg-amber-950/90 text-amber-300 border-amber-500/80 font-bold shadow-[0_0_8px_rgba(245,158,11,0.25)]',
+      borderClass: 'border-amber-500/60 shadow-amber-950/20 shadow-md',
       tagColor: 'amber',
       isUrgent: true,
+      isWarning: true,
+      isCritical: false,
       severity: 4
     };
   }
 
-  if (days <= 30) {
-    return {
-      level: 'notice',
-      days,
-      label: `${days} Gün Kaldı`,
-      shortLabel: `${days} gün`,
-      badgeClass: 'bg-sky-950/80 text-sky-300 border-sky-800 font-medium',
-      borderClass: 'border-sky-800/40',
-      tagColor: 'sky',
-      isUrgent: false,
-      severity: 5
-    };
-  }
-
+  // > 30 days: NORMAL / GÜVENLİ (YEŞİL / EMERALD)
   return {
     level: 'ok',
     days,
@@ -150,7 +154,9 @@ export function getLicenseStatus(days) {
     borderClass: 'border-emerald-800/40',
     tagColor: 'emerald',
     isUrgent: false,
-    severity: 6
+    isWarning: false,
+    isCritical: false,
+    severity: 5
   };
 }
 
@@ -525,5 +531,44 @@ export function playAlertChime() {
     playSoundById(choice);
   } catch (err) {
     console.warn('Audio chime could not be played:', err);
+  }
+}
+
+/**
+ * High-urgency critical alarm sound for licenses expiring within <= 15 days
+ * Plays a distinct two-tone alert siren
+ */
+export function playCriticalLicenseAlarm() {
+  try {
+    if (!getSoundEnabled()) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    // Distinct 3-stage critical klaxon siren
+    const now = ctx.currentTime;
+    playTone(ctx, { freq: 920, type: 'sawtooth', start: 0, duration: 0.12, gain: 0.15 });
+    playTone(ctx, { freq: 680, type: 'sawtooth', start: 0.14, duration: 0.12, gain: 0.15 });
+    playTone(ctx, { freq: 980, type: 'sawtooth', start: 0.28, duration: 0.22, gain: 0.18 });
+  } catch (err) {
+    console.warn('Critical license alarm could not be played:', err);
+  }
+}
+
+/**
+ * Spoken voice warning via Optimus Prime speech engine for licenses expiring within <= 15 days
+ * @param {string|number} subject Info about the expiring license or count
+ */
+export function announceCriticalLicenseVoice(subject) {
+  try {
+    if (!getSoundEnabled()) return;
+    let message = 'Dikkat! 15 gün veya daha az süresi kalan kritik lisans bulunmaktadır!';
+    if (typeof subject === 'string' && subject.trim()) {
+      message = `Dikkat! ${subject} lisansının süresi 15 günden az kalmıştır. Lütfen yenileyiniz!`;
+    } else if (typeof subject === 'number' && subject > 0) {
+      message = `Dikkat! ${subject} adet lisansın süresi 15 gün veya daha az kalmıştır!`;
+    }
+    speakRobotText(message, 'tr');
+  } catch (err) {
+    console.warn('Voice announcement failed:', err);
   }
 }
