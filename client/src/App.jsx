@@ -2231,7 +2231,6 @@ export default function App() {
           onClose={() => setIsBranchManagerModalOpen(false)}
           customer={customerData}
           onUpdate={() => customerData && loadCustomerDetails(customerData.id)}
-          showToast={showToast}
         />
       )}
     </div>
