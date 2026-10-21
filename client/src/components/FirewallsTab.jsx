@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Shield, Plus, Search, Edit2, Trash2, Globe, ExternalLink, Key, Lock, CheckCircle2, Building2, ShieldAlert } from 'lucide-react';
+import { Shield, Plus, Search, Edit2, Trash2, Globe, ExternalLink, Key, Lock, CheckCircle2, Building2, ShieldAlert, MapPin } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
 import { getDaysRemaining, getLicenseStatus } from '../utils/licenseAlerts';
 import { openWebPanel } from '../utils/launcher';
 
-export default function FirewallsTab({ firewalls = [], branches = [], onAdd, onEdit, onDelete }) {
+export default function FirewallsTab({ firewalls = [], branches = [], onAdd, onEdit, onDelete, onManageBranches }) {
   const [search, setSearch] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('ALL');
 
@@ -68,6 +68,17 @@ export default function FirewallsTab({ firewalls = [], branches = [], onAdd, onE
                 );
               })}
             </select>
+            {onManageBranches && (
+              <button
+                type="button"
+                onClick={onManageBranches}
+                title="Şubeleri Yönet (Ekle / Sil / Yeniden Adlandır)"
+                className="px-2.5 py-2 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-rose-300 rounded-lg border border-slate-800 hover:border-rose-500/50 text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                <MapPin className="w-3.5 h-3.5 text-rose-400" />
+                <span className="hidden sm:inline">Şube Yönetimi</span>
+              </button>
+            )}
           </div>
         </div>
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Laptop, Plus, Search, Edit2, Trash2, Key, Wifi, Network,
   User, Monitor, ShieldCheck, Building2, Filter, Table, LayoutGrid, Shield, Printer,
-  Zap, FileText, QrCode, Tag
+  Zap, FileText, QrCode, Tag, MapPin
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
@@ -23,7 +23,8 @@ export default function UserComputersTab({
   onEdit,
   onDelete,
   onOpenReport,
-  onReloadCustomer
+  onReloadCustomer,
+  onManageBranches
 }) {
   const [search, setSearch] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('ALL');
@@ -117,6 +118,17 @@ export default function UserComputersTab({
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
+            {onManageBranches && (
+              <button
+                type="button"
+                onClick={onManageBranches}
+                title="Şubeleri Yönet (Ekle / Sil / Yeniden Adlandır)"
+                className="px-2.5 py-2 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-cyan-300 rounded-lg border border-slate-800 hover:border-cyan-500/50 text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline">Şube Yönetimi</span>
+              </button>
+            )}
           </div>
 
           {/* Department Filter */}

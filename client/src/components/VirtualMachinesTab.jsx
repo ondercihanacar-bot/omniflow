@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Cloud, Plus, Search, Edit2, Trash2, Key, Cpu, HardDrive,
-  CheckCircle2, Server, Table, LayoutGrid, Network, Info, Shield, Monitor, Zap, Building2
+  CheckCircle2, Server, Table, LayoutGrid, Network, Info, Shield, Monitor, Zap, Building2, MapPin
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
@@ -18,7 +18,8 @@ export default function VirtualMachinesTab({
   onAdd,
   onEdit,
   onDelete,
-  onReloadCustomer
+  onReloadCustomer,
+  onManageBranches
 }) {
   const [search, setSearch] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('ALL');
@@ -93,6 +94,17 @@ export default function VirtualMachinesTab({
                 );
               })}
             </select>
+            {onManageBranches && (
+              <button
+                type="button"
+                onClick={onManageBranches}
+                title="Şubeleri Yönet (Ekle / Sil / Yeniden Adlandır)"
+                className="px-2.5 py-2 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-purple-300 rounded-lg border border-slate-800 hover:border-purple-500/50 text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                <MapPin className="w-3.5 h-3.5 text-purple-400" />
+                <span className="hidden sm:inline">Şube Yönetimi</span>
+              </button>
+            )}
           </div>
 
           {/* View Mode Switcher: Table vs Cards */}

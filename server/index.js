@@ -1005,9 +1005,11 @@ app.get('/api/customers/:id', (req, res) => {
       WHERE ma.customer_id = ?
       ORDER BY ma.full_name ASC, ma.email_address ASC
     `).all(customer.id);
+    const branches = db.prepare('SELECT * FROM customer_branches WHERE customer_id = ? ORDER BY branch_name ASC').all(customer.id);
 
     res.json({
       ...customer,
+      branches,
       internet_lines,
       physical_servers,
       virtual_machines,
@@ -1229,6 +1231,184 @@ app.delete('/api/customers/:id', (req, res) => {
     res.json({
       success: true,
       message: `"${customerName}" müşterisi ve tüm ilişkili kayıtlar başarıyla silindi.`
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ----------------- CUSTOMER BRANCHES & LOCATIONS -----------------
+app.get('/api/customers/:id/branches', (req, res) => {
+  try {
+    const customerId = req.params.id;
+    const customer = db.prepare('SELECT id, name FROM customers WHERE id = ?').get(customerId);
+    if (!customer) {
+      return res.status(404).json({ error: 'Müşteri bulunamadı' });
+    }
+
+    const explicitRows = db.prepare('SELECT * FROM customer_branches WHERE customer_id = ? ORDER BY branch_name ASC').all(customerId);
+    const explicitMap = new Map(explicitRows.map(r => [r.branch_name, r]));
+
+    const tables = [
+      { name: 'physical_servers', label: 'Fiziksel Sunucu' },
+      { name: 'virtual_machines', label: 'Sanal Makine' },
+      { name: 'user_computers', label: 'Kullanıcı PC' },
+      { name: 'firewalls', label: 'Güvenlik Duvarı' },
+      { name: 'backup_units', label: 'Yedekleme & NAS' },
+      { name: 'wifi_controllers', label: 'Wi-Fi Controller' },
+      { name: 'wifi_access_points', label: 'Wi-Fi AP' },
+      { name: 'wifi_networks', label: 'Wi-Fi Ağı' },
+      { name: 'antivirus_licenses', label: 'Antivirüs Lisansı' },
+      { name: 'internet_lines', label: 'İnternet Hattı' },
+      { name: 'mail_accounts', label: 'E-Posta Hesabı' }
+    ];
+
+    const branchStats = {};
+    const ensureBranch = (name) => {
+      if (!name || name === 'Tüm Şubeler') return;
+      if (!branchStats[name]) {
+        branchStats[name] = {
+          branch_name: name,
+          is_default: name === 'Merkez Ofis',
+          notes: explicitMap.get(name)?.notes || '',
+          id: explicitMap.get(name)?.id || null,
+          total_devices: 0,
+          details: {}
+        };
+      }
+    };
+
+    ensureBranch('Merkez Ofis');
+    explicitRows.forEach(r => ensureBranch(r.branch_name));
+
+    for (const t of tables) {
+      const rows = db.prepare(`SELECT branch_name, COUNT(*) as cnt FROM ${t.name} WHERE customer_id = ? GROUP BY branch_name`).all(customerId);
+      for (const row of rows) {
+        if (!row.branch_name || row.branch_name === 'Tüm Şubeler') continue;
+        ensureBranch(row.branch_name);
+        branchStats[row.branch_name].total_devices += row.cnt;
+        branchStats[row.branch_name].details[t.label] = (branchStats[row.branch_name].details[t.label] || 0) + row.cnt;
+      }
+    }
+
+    const result = Object.values(branchStats).sort((a, b) => {
+      if (a.is_default) return -1;
+      if (b.is_default) return 1;
+      return a.branch_name.localeCompare(b.branch_name, 'tr');
+    });
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/customers/:id/branches', (req, res) => {
+  try {
+    const customerId = req.params.id;
+    const { branch_name, notes } = req.body;
+    if (!branch_name || !String(branch_name).trim()) {
+      return res.status(400).json({ error: 'Şube adı boş olamaz' });
+    }
+    const cleanName = String(branch_name).trim();
+
+    const customer = db.prepare('SELECT id FROM customers WHERE id = ?').get(customerId);
+    if (!customer) {
+      return res.status(404).json({ error: 'Müşteri bulunamadı' });
+    }
+
+    const existing = db.prepare('SELECT id FROM customer_branches WHERE customer_id = ? AND branch_name = ?').get(customerId, cleanName);
+    if (existing) {
+      return res.status(400).json({ error: `"${cleanName}" şubesi zaten mevcut.` });
+    }
+
+    const info = db.prepare('INSERT INTO customer_branches (customer_id, branch_name, notes) VALUES (?, ?, ?)').run(customerId, cleanName, notes || '');
+    res.status(201).json({ id: info.lastInsertRowid, customer_id: customerId, branch_name: cleanName, notes: notes || '' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/customers/:id/branches/rename', (req, res) => {
+  try {
+    const customerId = req.params.id;
+    const { old_name, new_name } = req.body;
+    if (!old_name || !new_name || !String(old_name).trim() || !String(new_name).trim()) {
+      return res.status(400).json({ error: 'Eski ve yeni şube adı belirtilmelidir' });
+    }
+    const cleanOld = String(old_name).trim();
+    const cleanNew = String(new_name).trim();
+
+    if (cleanOld.toLowerCase() === cleanNew.toLowerCase()) {
+      return res.json({ success: true, message: 'Değişiklik yapılmadı.' });
+    }
+
+    const existing = db.prepare('SELECT id FROM customer_branches WHERE customer_id = ? AND branch_name = ?').get(customerId, cleanOld);
+    if (existing) {
+      db.prepare('UPDATE customer_branches SET branch_name = ? WHERE id = ?').run(cleanNew, existing.id);
+    } else {
+      db.prepare('INSERT OR IGNORE INTO customer_branches (customer_id, branch_name) VALUES (?, ?)').run(customerId, cleanNew);
+    }
+
+    const tables = [
+      'physical_servers', 'virtual_machines', 'user_computers', 'firewalls',
+      'backup_units', 'wifi_controllers', 'wifi_access_points', 'wifi_networks',
+      'antivirus_licenses', 'internet_lines', 'mail_accounts'
+    ];
+
+    let totalUpdated = 0;
+    for (const t of tables) {
+      const info = db.prepare(`UPDATE ${t} SET branch_name = ? WHERE customer_id = ? AND branch_name = ?`).run(cleanNew, customerId, cleanOld);
+      totalUpdated += info.changes;
+    }
+
+    res.json({
+      success: true,
+      old_name: cleanOld,
+      new_name: cleanNew,
+      total_records_updated: totalUpdated,
+      message: `Şube adı "${cleanOld}" -> "${cleanNew}" olarak güncellendi (${totalUpdated} cihaz/kayıt güncellendi).`
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/customers/:id/branches', (req, res) => {
+  try {
+    const customerId = req.params.id;
+    const branch_name = req.body?.branch_name || req.query?.branch_name;
+    const migrate_to = req.body?.migrate_to || req.query?.migrate_to || 'Merkez Ofis';
+
+    if (!branch_name || !String(branch_name).trim()) {
+      return res.status(400).json({ error: 'Silinecek şube adı belirtilmelidir.' });
+    }
+    const cleanName = String(branch_name).trim();
+
+    if (cleanName.toLowerCase() === 'merkez ofis') {
+      return res.status(400).json({ error: 'Varsayılan "Merkez Ofis" lokasyonu silinemez.' });
+    }
+
+    db.prepare('DELETE FROM customer_branches WHERE customer_id = ? AND branch_name = ?').run(customerId, cleanName);
+
+    const tables = [
+      'physical_servers', 'virtual_machines', 'user_computers', 'firewalls',
+      'backup_units', 'wifi_controllers', 'wifi_access_points', 'wifi_networks',
+      'antivirus_licenses', 'internet_lines', 'mail_accounts'
+    ];
+
+    let totalMigrated = 0;
+    for (const t of tables) {
+      const info = db.prepare(`UPDATE ${t} SET branch_name = ? WHERE customer_id = ? AND branch_name = ?`).run(migrate_to, customerId, cleanName);
+      totalMigrated += info.changes;
+    }
+
+    res.json({
+      success: true,
+      deleted_branch: cleanName,
+      migrated_to: migrate_to,
+      total_devices_migrated: totalMigrated,
+      message: `"${cleanName}" şubesi silindi. Bağlı ${totalMigrated} adet cihaz "${migrate_to}" lokasyonuna aktarıldı.`
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

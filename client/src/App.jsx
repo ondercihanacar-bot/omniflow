@@ -36,6 +36,7 @@ import DeleteCustomerSecurityModal from './components/DeleteCustomerSecurityModa
 import DisasterVaultModal from './components/DisasterVaultModal';
 import SecurityAuditModal from './components/SecurityAuditModal';
 import AssetTagModal from './components/AssetTagModal';
+import BranchManagerModal from './components/BranchManagerModal';
 import HomeHeroScreen from './components/HomeHeroScreen';
 import { exportCustomerToExcel } from './utils/exporter';
 import {
@@ -109,6 +110,7 @@ export default function App() {
   const [isDisasterVaultModalOpen, setIsDisasterVaultModalOpen] = useState(false);
   const [isSecurityAuditModalOpen, setIsSecurityAuditModalOpen] = useState(false);
   const [isAssetTagModalOpen, setIsAssetTagModalOpen] = useState(false);
+  const [isBranchManagerModalOpen, setIsBranchManagerModalOpen] = useState(false);
   const [licenseAlerts, setLicenseAlerts] = useState([]);
   const hasPlayedAlertSound = useRef(false);
 
@@ -255,6 +257,7 @@ export default function App() {
     return Array.from(
       new Set([
         'Merkez Ofis',
+        ...(customerData?.branches || []).map(b => b.branch_name),
         ...(customerData?.internet_lines || []).map(l => l.branch_name),
         ...(customerData?.user_computers || []).map(c => c.branch_name),
         ...(customerData?.physical_servers || []).map(s => s.branch_name),
@@ -1371,6 +1374,17 @@ export default function App() {
                       </button>
                     )}
 
+                    {checkPermission(currentUser, 'edit') && (
+                      <button
+                        onClick={() => setIsBranchManagerModalOpen(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 text-xs font-semibold rounded-lg border border-indigo-800/60 transition-colors cursor-pointer shadow-sm"
+                        title="Müşteri Şubelerini ve Lokasyonlarını Yönet (Ekle, Sil, Düzenle)"
+                      >
+                        <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>Şubeleri Yönet</span>
+                      </button>
+                    )}
+
                     {/* Sadece Admin Silebilmeli - 2 Aşamalı Güvenlik Kilidi */}
                     {currentUser && (currentUser.role === 'admin' || currentUser.username === 'admin') && (
                       <button
@@ -1685,6 +1699,7 @@ export default function App() {
                       setIsLineModalOpen(true);
                     }}
                     onDelete={handleDeleteLine}
+                    onManageBranches={() => setIsBranchManagerModalOpen(true)}
                   />
                 )}
 
@@ -1706,6 +1721,7 @@ export default function App() {
                     }}
                     onDelete={handleDeleteServer}
                     onReloadCustomer={() => customerData && loadCustomerDetails(customerData.id)}
+                    onManageBranches={() => setIsBranchManagerModalOpen(true)}
                   />
                 )}
 
@@ -1727,6 +1743,7 @@ export default function App() {
                     }}
                     onDelete={handleDeleteVM}
                     onReloadCustomer={() => customerData && loadCustomerDetails(customerData.id)}
+                    onManageBranches={() => setIsBranchManagerModalOpen(true)}
                   />
                 )}
 
@@ -1750,6 +1767,7 @@ export default function App() {
                     onDelete={handleDeletePC}
                     onOpenReport={() => setIsReportModalOpen(true)}
                     onReloadCustomer={() => loadCustomerDetails(selectedCustomerId)}
+                    onManageBranches={() => setIsBranchManagerModalOpen(true)}
                   />
                 )}
 
@@ -1769,6 +1787,7 @@ export default function App() {
                       setIsFirewallModalOpen(true);
                     }}
                     onDelete={handleDeleteFirewall}
+                    onManageBranches={() => setIsBranchManagerModalOpen(true)}
                   />
                 )}
 
@@ -1806,6 +1825,7 @@ export default function App() {
                       setIsBackupModalOpen(true);
                     }}
                     onDelete={handleDeleteBackup}
+                    onManageBranches={() => setIsBranchManagerModalOpen(true)}
                   />
                 )}
 
@@ -2201,6 +2221,17 @@ export default function App() {
           computers={customerData.user_computers || []}
           servers={customerData.physical_servers || []}
           firewalls={customerData.firewalls || []}
+        />
+      )}
+
+      {/* Şube ve Lokasyon Yönetimi Modalı */}
+      {customerData && (
+        <BranchManagerModal
+          isOpen={isBranchManagerModalOpen}
+          onClose={() => setIsBranchManagerModalOpen(false)}
+          customer={customerData}
+          onUpdate={() => customerData && loadCustomerDetails(customerData.id)}
+          showToast={showToast}
         />
       )}
     </div>

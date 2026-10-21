@@ -6,7 +6,7 @@ import {
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
 
-export default function InternetLinesTab({ lines = [], onAdd, onEdit, onDelete }) {
+export default function InternetLinesTab({ lines = [], onAdd, onEdit, onDelete, onManageBranches }) {
   const [search, setSearch] = useState('');
 
   const filtered = lines.filter(l => {
@@ -40,13 +40,26 @@ export default function InternetLinesTab({ lines = [], onAdd, onEdit, onDelete }
           />
         </div>
 
-        <button
-          onClick={onAdd}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Yeni Şube / İnternet Hattı Ekle</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {onManageBranches && (
+            <button
+              onClick={onManageBranches}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition-colors cursor-pointer"
+              title="Şubeleri ve Lokasyonları Yönet (Ekle / Sil / Yeniden Adlandır)"
+            >
+              <MapPin className="w-4 h-4 text-cyan-400" />
+              <span>Şubeleri Yönet</span>
+            </button>
+          )}
+
+          <button
+            onClick={onAdd}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Yeni Şube / İnternet Hattı Ekle</span>
+          </button>
+        </div>
       </div>
 
       {/* Grid of Lines */}

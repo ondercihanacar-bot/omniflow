@@ -58,6 +58,46 @@ export const api = {
     return res.json();
   },
 
+  // Customer Branches & Locations
+  getCustomerBranches: async (customerId) => {
+    const res = await authFetch(`${API_BASE}/customers/${customerId}/branches`);
+    if (!res.ok) throw new Error('Şubeler alınamadı');
+    return res.json();
+  },
+
+  createCustomerBranch: async (customerId, data) => {
+    const res = await authFetch(`${API_BASE}/customers/${customerId}/branches`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(result.error || 'Şube eklenemedi');
+    return result;
+  },
+
+  renameCustomerBranch: async (customerId, old_name, new_name) => {
+    const res = await authFetch(`${API_BASE}/customers/${customerId}/branches/rename`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_name, new_name })
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(result.error || 'Şube yeniden adlandırılamadı');
+    return result;
+  },
+
+  deleteCustomerBranch: async (customerId, branch_name, migrate_to = 'Merkez Ofis') => {
+    const res = await authFetch(`${API_BASE}/customers/${customerId}/branches`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ branch_name, migrate_to })
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(result.error || 'Şube silinemedi');
+    return result;
+  },
+
   generatePdf: async (html, filename) => {
     const res = await authFetch(`${API_BASE}/generate-pdf`, {
       method: 'POST',
