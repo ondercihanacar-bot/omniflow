@@ -1164,7 +1164,7 @@ export default function App() {
         />
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto flex flex-col bg-slate-950 w-full min-w-0">
+        <main className={`flex-1 flex flex-col bg-slate-950 w-full min-w-0 ${!customerData && viewMode !== 'kb' ? 'overflow-hidden h-full' : 'overflow-y-auto'}`}>
           {/* Expired License Warning Banner */}
           {omniLicense?.status === 'expired' && (
             <div className="mx-4 sm:mx-6 mt-4 p-4 rounded-2xl border border-amber-500/80 bg-amber-950/40 text-amber-200 flex items-center justify-between shadow-lg shadow-amber-950/30">

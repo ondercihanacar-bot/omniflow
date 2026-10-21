@@ -13,7 +13,8 @@ export default function SeamlessVideo({
   containerClassName = 'relative w-full h-full overflow-hidden',
   fadeDuration = null, // in seconds, null for auto-calculation
   onError = () => {},
-  style = {}
+  style = {},
+  videoStyle = {}
 }) {
   const [activePlayer, setActivePlayer] = useState(0); // 0 or 1
   const videoARef = useRef(null);
@@ -115,7 +116,8 @@ export default function SeamlessVideo({
         style={{
           opacity: activePlayer === 0 ? 1 : 0,
           transition: `opacity ${effectiveTransition} ease-in-out`,
-          zIndex: activePlayer === 0 ? 2 : 1
+          zIndex: activePlayer === 0 ? 2 : 1,
+          ...videoStyle
         }}
       />
 
@@ -132,7 +134,8 @@ export default function SeamlessVideo({
         style={{
           opacity: activePlayer === 1 ? 1 : 0,
           transition: `opacity ${effectiveTransition} ease-in-out`,
-          zIndex: activePlayer === 1 ? 2 : 1
+          zIndex: activePlayer === 1 ? 2 : 1,
+          ...videoStyle
         }}
       />
     </div>
