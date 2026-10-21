@@ -16,27 +16,27 @@ export default function BrandLogo({
     md: 'w-9 h-9 text-base',
     lg: 'w-16 h-16 text-2xl',
     xl: 'w-24 h-24 text-3xl',
-    banner: 'w-36 sm:w-44 md:w-52 h-9 sm:h-11 md:h-12',
+    banner: 'w-auto max-w-[220px] h-[64px] sm:h-[68px] lg:h-[72px] aspect-[2.7/1]',
     auth: 'w-full h-28 sm:h-32'
   };
 
   const currentSize = sizeClasses[size] || sizeClasses.md;
 
   if (!videoError) {
-    // Main page top navbar banner: beveled pill widget that fits seamlessly
+    // Main page top navbar banner: beveled pill widget that fits seamlessly without cropping rotating parts
     if (size === 'banner') {
       return (
         <div
           onClick={onClick}
-          className={`relative flex items-center justify-center rounded-xl border border-slate-800/80 bg-slate-950/60 shadow-sm overflow-hidden p-0.5 ${currentSize} ${onClick ? 'cursor-pointer' : ''} ${className}`}
+          className={`relative flex items-center justify-center rounded-2xl border border-slate-800/80 bg-slate-950/70 shadow-sm overflow-hidden p-0.5 ${currentSize} ${onClick ? 'cursor-pointer' : ''} ${className}`}
           title="OmniFlow"
         >
           <SeamlessVideo
             src="/logo.mp4"
             fadeDuration={0.8}
             onError={() => setVideoError(true)}
-            className="w-full h-full object-cover object-center rounded-lg"
-            containerClassName="relative w-full h-full overflow-hidden rounded-lg"
+            className="w-full h-full object-cover object-center rounded-xl"
+            containerClassName="relative w-full h-full overflow-hidden rounded-xl flex items-center justify-center"
             style={{
               imageRendering: '-webkit-optimize-contrast',
               WebkitBackfaceVisibility: 'hidden',

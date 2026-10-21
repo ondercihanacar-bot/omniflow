@@ -65,7 +65,7 @@ export default function Navbar({
   }, [isUserMenuOpen]);
 
   return (
-    <header className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 z-30 pr-3 sm:pr-5">
+    <header className="h-[84px] md:h-[88px] lg:h-[92px] bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 z-30 pr-3 sm:pr-5 transition-all">
       {/* Left Cluster: Brand (Yellow Box) + Narrow Search Omnibox (Red Box) */}
       <div className="flex items-center gap-3 shrink-0 h-full">
         {/* Brand & Sidebar Toggle (Fluid width on mobile/tablet, aligned on desktop) */}
@@ -78,7 +78,7 @@ export default function Navbar({
             <button
               onClick={onToggleSidebar}
               title={isSidebarOpen ? t('navbar.toggleSidebarHide') : t('navbar.toggleSidebarShow')}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors cursor-pointer border border-slate-800/80 shrink-0 z-10"
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors cursor-pointer border border-slate-800/80 shrink-0 z-10"
             >
               {isSidebarOpen ? (
                 <PanelLeftClose className="w-4 h-4 text-blue-400" />
@@ -99,7 +99,7 @@ export default function Navbar({
                 onGoHome();
               }
             }}
-            className="flex-1 h-full flex items-center justify-center overflow-hidden cursor-pointer group select-none"
+            className="flex-1 h-full flex items-center justify-center overflow-hidden cursor-pointer group select-none py-1.5"
             title={t('navbar.goHome') || 'OmniFlow - Ana Sayfaya Git'}
           >
             <BrandLogo
@@ -114,7 +114,7 @@ export default function Navbar({
         <div className="w-9 sm:w-44 md:w-56 lg:w-64 shrink-0 pl-0.5 sm:pl-1">
           <button
             onClick={onOpenSearch}
-            className="w-full flex items-center justify-between p-2 sm:px-3 sm:py-1.5 bg-slate-950/80 hover:bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl text-xs text-slate-400 transition-all cursor-pointer shadow-inner group"
+            className="w-full flex items-center justify-between p-2 sm:px-3.5 sm:py-2.5 bg-slate-950/80 hover:bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl text-xs text-slate-400 transition-all cursor-pointer shadow-inner group"
             title={t('navbar.searchTooltip')}
           >
             <div className="flex items-center gap-2 truncate">
@@ -135,7 +135,7 @@ export default function Navbar({
           <button
             onClick={onToggleKBView}
             title={isKBView ? t('navbar.kbTooltipToCustomer') : t('navbar.kbTooltipToKB')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
               isKBView
                 ? 'bg-amber-600 text-white border-amber-500 shadow-md shadow-amber-950/40'
                 : 'bg-slate-950/70 hover:bg-slate-900 border-slate-800 text-slate-300 hover:text-amber-400 hover:border-amber-500/40'
@@ -156,7 +156,7 @@ export default function Navbar({
           <button
             onClick={onOpenLicenseAlerts}
             title={`🚨 ${criticalLicenseCount} Kritik Lisans (15 gün veya daha az kaldı!) - Toplam ${urgentLicenseCount} bildirim`}
-            className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-950/90 hover:bg-rose-900 border border-rose-500 text-rose-200 text-xs font-bold transition-all shadow-lg shadow-rose-950/50 cursor-pointer animate-pulse"
+            className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-950/90 hover:bg-rose-900 border border-rose-500 text-rose-200 text-xs font-bold transition-all shadow-lg shadow-rose-950/50 cursor-pointer animate-pulse"
           >
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-90"></span>
@@ -170,7 +170,7 @@ export default function Navbar({
           <button
             onClick={onOpenLicenseAlerts}
             title={`⚠️ ${warningLicenseCount || urgentLicenseCount} Lisans Uyarısı (Son 30 gün içinde dolacak)`}
-            className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-950/90 hover:bg-amber-900 border border-amber-500 text-amber-200 text-xs font-bold transition-all shadow-md shadow-amber-950/40 cursor-pointer"
+            className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-950/90 hover:bg-amber-900 border border-amber-500 text-amber-200 text-xs font-bold transition-all shadow-md shadow-amber-950/40 cursor-pointer"
           >
             <span className="relative flex h-2 w-2">
               <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-90"></span>
@@ -184,7 +184,7 @@ export default function Navbar({
           <button
             onClick={onOpenLicenseAlerts}
             title={t('navbar.licensesOk')}
-            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-slate-950/60 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-emerald-400 text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950/60 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-emerald-400 text-xs font-medium transition-colors cursor-pointer"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
             <span className="hidden 2xl:inline text-[11px]">{t('navbar.licensesOkShort')}</span>
@@ -193,7 +193,7 @@ export default function Navbar({
 
         {/* Quick Global Stats summary pills (Streamlined) */}
         {stats && (
-          <div className="hidden xl:flex items-center gap-1 bg-slate-950/60 px-2 py-1 rounded-lg border border-slate-800/80 text-[11px] font-mono">
+          <div className="hidden xl:flex items-center gap-1.5 bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-800/80 text-[11px] font-mono">
             <span className="px-1 py-0.5 rounded text-blue-300 flex items-center gap-1" title={t('navbar.statCustomers')}>
               <Users className="w-3 h-3 text-blue-400" />
               <span>{stats.customers}</span>
@@ -233,7 +233,7 @@ export default function Navbar({
         <button
           type="button"
           onClick={onOpenOmniHubLicense}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-sm cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all shadow-sm cursor-pointer ${
             licenseStatus?.status === 'active'
               ? 'bg-emerald-950/80 border-emerald-500/70 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:bg-emerald-900'
               : licenseStatus?.status === 'demo'
@@ -259,7 +259,7 @@ export default function Navbar({
           type="button"
           onClick={onOpenHelp}
           title={language === 'en' ? 'User Guide & Help Center (F1)' : 'Kullanım Kılavuzu & Yardım (F1)'}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 border border-slate-700 hover:border-cyan-500/50 text-xs font-semibold transition-all cursor-pointer shadow-sm group"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 border border-slate-700 hover:border-cyan-500/50 text-xs font-semibold transition-all cursor-pointer shadow-sm group"
         >
           <HelpCircle className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
           <span className="hidden xl:inline text-xs">{language === 'en' ? 'Help' : 'Yardım'}</span>
@@ -271,7 +271,7 @@ export default function Navbar({
             <button
               type="button"
               onClick={() => setIsUserMenuOpen(prev => !prev)}
-              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer group shadow-sm ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all cursor-pointer group shadow-sm ${
                 isUserMenuOpen
                   ? 'bg-slate-800 border-blue-500/80 ring-2 ring-blue-500/20 text-white'
                   : 'bg-slate-950/70 hover:bg-slate-800/90 border-slate-800 hover:border-slate-700 text-slate-200'
