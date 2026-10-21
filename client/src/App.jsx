@@ -36,6 +36,7 @@ import DeleteCustomerSecurityModal from './components/DeleteCustomerSecurityModa
 import DisasterVaultModal from './components/DisasterVaultModal';
 import SecurityAuditModal from './components/SecurityAuditModal';
 import AssetTagModal from './components/AssetTagModal';
+import HomeHeroScreen from './components/HomeHeroScreen';
 import { exportCustomerToExcel } from './utils/exporter';
 import {
   getDaysRemaining, getLicenseStatus, playAlertChime, getSoundEnabled,
@@ -45,7 +46,7 @@ import { checkPermission } from './utils/permissions';
 import {
   Building2, Globe, Phone, Mail, Edit, Trash2, LayoutDashboard,
   Server, Cloud, Laptop, Shield, ShieldCheck, Database, Plus, RefreshCw,
-  Network, FileSpreadsheet, Printer, Wifi, BookOpen, Lock, Key, AlertCircle, Award, QrCode
+  Network, FileSpreadsheet, Printer, Wifi, BookOpen, Lock, Key, AlertCircle, Award, QrCode, Home
 } from 'lucide-react';
 import { useLanguage } from './context/LanguageContext';
 
@@ -320,10 +321,13 @@ export default function App() {
     try {
       const list = await api.getCustomers();
       setCustomers(list);
-      if (list.length > 0) {
-        const targetId = selectId || selectedCustomerId || list[0].id;
-        setSelectedCustomerId(targetId);
+      if (selectId) {
+        setSelectedCustomerId(selectId);
+      } else if (selectedCustomerId && list.some(c => c.id === selectedCustomerId)) {
+        // Keep active customer selected if still existing in list
+        setSelectedCustomerId(selectedCustomerId);
       } else {
+        // Trial mode: on initial startup / refresh, landing view shows the animated logo hero screen
         setSelectedCustomerId(null);
         setCustomerData(null);
       }
@@ -373,13 +377,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Logo click triggers direct navigation to Home / Overview
+  // Logo click triggers direct navigation to Home / Hero Screen
   const handleGoHome = () => {
     setViewMode('customer');
+    setSelectedCustomerId(null);
+    setCustomerData(null);
     setActiveTab('overview');
-    if (customers.length > 0 && !selectedCustomerId) {
-      setSelectedCustomerId(customers[0].id);
-    }
   };
 
   // ---------------- Customer CRUD ----------------
@@ -1130,7 +1133,11 @@ export default function App() {
           onSelectCustomer={(id) => {
             setViewMode('customer');
             setSelectedCustomerId(id);
-            setActiveTab('overview');
+            if (id) {
+              setActiveTab('overview');
+            } else {
+              setCustomerData(null);
+            }
             if (typeof window !== 'undefined' && window.innerWidth < 768) {
               setIsSidebarOpen(false);
             }
@@ -1201,25 +1208,20 @@ export default function App() {
               </div>
             </div>
           ) : !customerData ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-              <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl mb-4 text-slate-600">
-                <Building2 className="w-12 h-12" />
-              </div>
-              <h2 className="text-xl font-bold text-white mb-2">{t('tabs.noCustomerSelected')}</h2>
-              <p className="text-sm text-slate-400 max-w-md mb-6">
-                {t('tabs.noCustomerSelectedDesc')}
-              </p>
-              <button
-                onClick={() => {
-                  setEditingCustomer(null);
-                  setIsCustomerModalOpen(true);
-                }}
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl shadow-lg transition-colors cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>{t('tabs.addFirstCustomer')}</span>
-              </button>
-            </div>
+            <HomeHeroScreen
+              customers={customers}
+              stats={stats}
+              onSelectCustomer={(id) => {
+                setViewMode('customer');
+                setSelectedCustomerId(id);
+                setActiveTab('overview');
+              }}
+              onAddCustomer={() => {
+                setEditingCustomer(null);
+                setIsCustomerModalOpen(true);
+              }}
+              onOpenSearch={() => setIsSearchModalOpen(true)}
+            />
           ) : (
             <div className="flex-1 flex flex-col p-2.5 sm:p-4 md:p-6 space-y-4 sm:space-y-5 w-full min-w-0">
               {/* Customer Header Banner */}
@@ -1292,6 +1294,17 @@ export default function App() {
 
                   {/* Customer Action Buttons */}
                   <div className="flex flex-wrap items-center gap-2 self-start lg:self-center">
+                    {/* Return to Animated Home Screen (Trial mode easily testable) */}
+                    <button
+                      type="button"
+                      onClick={handleGoHome}
+                      title={language === 'tr' ? 'Ana Sayfaya Dön (Hareketli Logo Ekranı)' : 'Return to Home (Animated Logo)'}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white text-xs font-semibold rounded-lg border border-slate-700 transition-colors cursor-pointer shadow-sm group"
+                    >
+                      <Home className="w-3.5 h-3.5 text-blue-400 group-hover:scale-110 transition-transform" />
+                      <span>{language === 'tr' ? 'Ana Ekran (Logo)' : 'Home (Logo)'}</span>
+                    </button>
+
                     {checkPermission(currentUser, 'export') && (
                       <>
                         <button

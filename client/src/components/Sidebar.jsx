@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Building2, Plus, Search, Globe, ChevronLeft,
-  Server, Database, Shield, Laptop, BookOpen, Wifi, Mail
+  Server, Database, Shield, Laptop, BookOpen, Wifi, Mail, Home
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -53,6 +53,29 @@ export default function Sidebar({
             </button>
           )}
         </div>
+
+        {/* Ana Ekran / Hareketli Logo Ekranı Butonu */}
+        <button
+          onClick={() => onSelectCustomer(null)}
+          title={language === 'tr' ? 'Ana Sayfa (Hareketli Logo Ekranı)' : 'Home (Animated Logo Screen)'}
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+            !isKBView && !selectedCustomerId
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-400 shadow-md shadow-blue-950/40 ring-1 ring-blue-400/30'
+              : 'bg-slate-950/70 hover:bg-slate-800 text-slate-300 hover:text-blue-400 border-slate-800 hover:border-blue-500/40'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Home className={`w-3.5 h-3.5 ${!isKBView && !selectedCustomerId ? 'text-white' : 'text-blue-400'}`} />
+            <span>{language === 'tr' ? 'Ana Sayfa (Logo)' : 'Home (Logo)'}</span>
+          </div>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+            !isKBView && !selectedCustomerId
+              ? 'bg-blue-800/80 text-blue-100 border border-blue-400/40'
+              : 'bg-blue-950 text-blue-300 border border-blue-800'
+          }`}>
+            OMNI
+          </span>
+        </button>
 
         {/* Knowledge Base Navigation Button */}
         {canAccessKB && (
