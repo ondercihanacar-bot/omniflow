@@ -325,6 +325,31 @@ Write-Host "[1/6] 🔍 Bilgisayar temel kimliği ve oturum bilgisi okunuyor..." 
 $compName = $env:COMPUTERNAME
 $userName = $env:USERNAME
 
+# User Email & Identity Detection
+$userEmail = ""
+try {
+    $offId = Get-ItemProperty "HKCU:\\Software\\Microsoft\\Office\\16.0\\Common\\Identity\\Identities\\*" -ErrorAction SilentlyContinue | Where-Object { $_.EmailAddress -match '@' } | Select-Object -First 1
+    if ($offId.EmailAddress) { $userEmail = $offId.EmailAddress.Trim() }
+} catch {}
+if (-not $userEmail) {
+    try {
+        $crl = Get-ItemProperty "HKCU:\\Software\\Microsoft\\IdentityCRL\\UserExtendedProperties\\*" -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '@' } | Select-Object -First 1
+        if ($crl.PSChildName) { $userEmail = $crl.PSChildName.Trim() }
+    } catch {}
+}
+if (-not $userEmail) {
+    try {
+        $wp = Get-ItemProperty "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Workplace\\*" -ErrorAction SilentlyContinue | Where-Object { $_.UserEmail -match '@' } | Select-Object -First 1
+        if ($wp.UserEmail) { $userEmail = $wp.UserEmail.Trim() }
+    } catch {}
+}
+if (-not $userEmail) {
+    try {
+        $upn = (whoami /upn 2>$null)
+        if ($upn -match '@') { $userEmail = $upn.Trim() }
+    } catch {}
+}
+
 Write-Host "[2/6] 💻 Marka, model, donanım özellikleri (CPU/RAM/Disk) taranıyor..." -ForegroundColor Gray
 $cs = Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue
 $brand = if ($cs.Manufacturer) { $cs.Manufacturer.Trim() } else { "Toplama / OEM" }
@@ -438,6 +463,7 @@ $data = @{
     branch_name      = "${safeBranch}"
     computer_name    = $compName
     assigned_user    = $userName
+    user_email       = $userEmail
     brand            = $brand
     model            = $model
     serial_number    = $serial
@@ -468,7 +494,9 @@ try {
     Write-Host "==========================================================" -ForegroundColor Green
     Write-Host "   ✅ BAŞARIYLA KAYDEDİLDİ!" -ForegroundColor Green
     Write-Host "   Bilgisayar : $compName ($brand $model)" -ForegroundColor White
-    Write-Host "   Personel   : $userName" -ForegroundColor White
+    Write-Host "   Kullanıcı  : $userName" -ForegroundColor White
+    if ($userEmail) { Write-Host "   E-posta    : $userEmail" -ForegroundColor Cyan }
+    if ($remoteId) { Write-Host "   TeamViewer : $remoteId" -ForegroundColor Yellow }
     Write-Host "   Müşteri    : ${safeCustomerName}" -ForegroundColor Yellow
     Write-Host "   Şube       : ${safeBranch}" -ForegroundColor White
     Write-Host "   IP Adresi  : $(if ($ethIp) { $ethIp } else { $wifiIp })" -ForegroundColor White

@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import {
   Laptop, Plus, Search, Edit2, Trash2, Key, Wifi, Network,
   User, Monitor, ShieldCheck, Building2, Filter, Table, LayoutGrid, Shield, Printer,
-  Zap, FileText, QrCode, Tag, MapPin
+  Zap, FileText, QrCode, Tag, MapPin, Mail
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
 import ComputerCollectorModal from './ComputerCollectorModal';
 import HandoverModal from './HandoverModal';
 import AssetTagModal from './AssetTagModal';
-import { launchAnyDesk } from '../utils/launcher';
+import { launchAnyDesk, launchTeamViewer } from '../utils/launcher';
 
 export default function UserComputersTab({
   customer,
@@ -71,6 +71,7 @@ export default function UserComputersTab({
     return (
       (c.computer_name || '').toLowerCase().includes(q) ||
       (c.assigned_user || '').toLowerCase().includes(q) ||
+      (c.user_email || '').toLowerCase().includes(q) ||
       (c.branch_name || '').toLowerCase().includes(q) ||
       (c.department || '').toLowerCase().includes(q) ||
       (c.brand || '').toLowerCase().includes(q) ||
@@ -266,6 +267,14 @@ export default function UserComputersTab({
                       <User className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span className="truncate">{c.assigned_user || 'Atanmadı'}</span>
                     </div>
+                    {c.user_email && (
+                      <div className="text-[11px] text-slate-300 font-normal flex items-center gap-1.5 truncate mt-0.5" title={c.user_email}>
+                        <Mail className="w-3 h-3 text-cyan-400 shrink-0" />
+                        <a href={`mailto:${c.user_email}`} className="truncate text-cyan-300 hover:underline">
+                          {c.user_email}
+                        </a>
+                      </div>
+                    )}
                     <div className="font-mono text-xs text-emerald-300 font-semibold mt-0.5 flex items-center gap-2">
                       <span>{c.computer_name}</span>
                       <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700 font-sans">
@@ -401,20 +410,22 @@ export default function UserComputersTab({
                   </div>
                 )}
 
-                {/* Remote Access (AnyDesk / TeamViewer) */}
+                {/* TeamViewer Remote Access */}
                 {c.remote_access_id && (
-                  <div className="flex items-center justify-between gap-2 bg-slate-950/60 px-2 py-1 rounded border border-slate-800/80">
-                    <span className="text-[10px] text-amber-400 font-semibold uppercase">Uzak Destek:</span>
-                    <div className="flex items-center gap-1.5 font-mono text-xs text-amber-300 font-bold">
+                  <div className="flex items-center justify-between gap-2 bg-slate-950/60 px-2.5 py-1.5 rounded-lg border border-slate-800/80">
+                    <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wide flex items-center gap-1">
+                      <span>TeamViewer:</span>
+                    </span>
+                    <div className="flex items-center gap-1.5 font-mono text-xs text-blue-300 font-bold">
                       <button
-                        onClick={() => launchAnyDesk(c.remote_access_id)}
+                        onClick={() => launchTeamViewer(c.remote_access_id)}
                         className="flex items-center gap-1 hover:text-white transition-colors cursor-pointer group"
-                        title="AnyDesk uygulamasını doğrudan bu ID ile başlat"
+                        title="TeamViewer uygulamasını doğrudan bu ID ile başlat"
                       >
                         <span className="group-hover:underline">{c.remote_access_id}</span>
-                        <span className="text-[9px] px-1.5 py-0.2 bg-rose-600/30 text-rose-300 rounded border border-rose-500/40">🚀 Başlat</span>
+                        <span className="text-[9px] px-1.5 py-0.2 bg-blue-600/30 text-blue-300 rounded border border-blue-500/40">Bağlan</span>
                       </button>
-                      <CopyButton text={c.remote_access_id} title="AnyDesk/Uzak ID Kopyala" />
+                      <CopyButton text={c.remote_access_id} title="TeamViewer ID Kopyala" />
                     </div>
                   </div>
                 )}
@@ -464,7 +475,7 @@ export default function UserComputersTab({
                   <th className="py-3 px-3.5 min-w-[170px]">Local Admin (OS)</th>
                   <th className="py-3 px-3.5 min-w-[190px]">Windows & Lisans</th>
                   <th className="py-3 px-3.5 min-w-[170px]">Office & Lisans</th>
-                  <th className="py-3 px-3.5 min-w-[140px]">Uzak Erişim</th>
+                  <th className="py-3 px-3.5 min-w-[150px]">TeamViewer ID</th>
                   <th className="py-3 px-3.5 text-right min-w-[80px]">İşlemler</th>
                 </tr>
               </thead>
@@ -492,6 +503,14 @@ export default function UserComputersTab({
                         <User className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                         <span>{c.assigned_user || 'Atanmadı'}</span>
                       </div>
+                      {c.user_email && (
+                        <div className="flex items-center gap-1 text-[11px] text-cyan-300 font-mono mt-0.5 truncate max-w-[200px]" title={c.user_email}>
+                          <Mail className="w-3 h-3 text-cyan-400 shrink-0" />
+                          <a href={`mailto:${c.user_email}`} className="truncate hover:underline text-cyan-300">
+                            {c.user_email}
+                          </a>
+                        </div>
+                      )}
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
                           <Building2 className="w-2.5 h-2.5" />
@@ -605,12 +624,18 @@ export default function UserComputersTab({
                       )}
                     </td>
 
-                    {/* Remote Access */}
+                    {/* TeamViewer ID */}
                     <td className="py-3 px-3.5">
                       {c.remote_access_id ? (
-                        <div className="flex items-center gap-1 font-mono text-[11px] text-amber-300 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 max-w-fit">
-                          <span className="truncate max-w-[110px]" title={c.remote_access_id}>{c.remote_access_id}</span>
-                          <CopyButton text={c.remote_access_id} title="Uzak ID Kopyala" />
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-blue-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800 max-w-fit">
+                          <button
+                            onClick={() => launchTeamViewer(c.remote_access_id)}
+                            className="hover:underline font-bold text-blue-300"
+                            title="TeamViewer uygulamasını başlat"
+                          >
+                            {c.remote_access_id}
+                          </button>
+                          <CopyButton text={c.remote_access_id} title="TeamViewer ID Kopyala" />
                         </div>
                       ) : (
                         <span className="text-slate-500 text-[11px]">-</span>

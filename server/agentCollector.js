@@ -330,6 +330,31 @@ Write-Host "[1/6] 🔍 Bilgisayar temel kimliği ve oturum bilgisi okunuyor..." 
 $compName = $env:COMPUTERNAME
 $userName = $env:USERNAME
 
+# User Email & Identity Detection
+$userEmail = ""
+try {
+    $offId = Get-ItemProperty "HKCU:\\Software\\Microsoft\\Office\\16.0\\Common\\Identity\\Identities\\*" -ErrorAction SilentlyContinue | Where-Object { $_.EmailAddress -match '@' } | Select-Object -First 1
+    if ($offId.EmailAddress) { $userEmail = $offId.EmailAddress.Trim() }
+} catch {}
+if (-not $userEmail) {
+    try {
+        $crl = Get-ItemProperty "HKCU:\\Software\\Microsoft\\IdentityCRL\\UserExtendedProperties\\*" -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '@' } | Select-Object -First 1
+        if ($crl.PSChildName) { $userEmail = $crl.PSChildName.Trim() }
+    } catch {}
+}
+if (-not $userEmail) {
+    try {
+        $wp = Get-ItemProperty "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Workplace\\*" -ErrorAction SilentlyContinue | Where-Object { $_.UserEmail -match '@' } | Select-Object -First 1
+        if ($wp.UserEmail) { $userEmail = $wp.UserEmail.Trim() }
+    } catch {}
+}
+if (-not $userEmail) {
+    try {
+        $upn = (whoami /upn 2>$null)
+        if ($upn -match '@') { $userEmail = $upn.Trim() }
+    } catch {}
+}
+
 Write-Host "[2/6] 💻 Marka, model, donanım özellikleri (CPU/RAM/Disk) taranıyor..." -ForegroundColor Gray
 $cs = Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue
 $brand = if ($cs.Manufacturer) { $cs.Manufacturer.Trim() } else { "Toplama / OEM" }
@@ -443,6 +468,7 @@ $data = @{
     branch_name      = "${safeBranch}"
     computer_name    = $compName
     assigned_user    = $userName
+    user_email       = $userEmail
     brand            = $brand
     model            = $model
     serial_number    = $serial
@@ -473,7 +499,9 @@ try {
     Write-Host "==========================================================" -ForegroundColor Green
     Write-Host "   ✅ BAŞARIYLA KAYDEDİLDİ!" -ForegroundColor Green
     Write-Host "   Bilgisayar : $compName ($brand $model)" -ForegroundColor White
-    Write-Host "   Personel   : $userName" -ForegroundColor White
+    Write-Host "   Kullanıcı  : $userName" -ForegroundColor White
+    if ($userEmail) { Write-Host "   E-posta    : $userEmail" -ForegroundColor Cyan }
+    if ($remoteId) { Write-Host "   TeamViewer : $remoteId" -ForegroundColor Yellow }
     Write-Host "   Müşteri    : ${safeCustomerName}" -ForegroundColor Yellow
     Write-Host "   Şube       : ${safeBranch}" -ForegroundColor White
     Write-Host "   IP Adresi  : $(if ($ethIp) { $ethIp } else { $wifiIp })" -ForegroundColor White
@@ -560,6 +588,7 @@ function handleRegisterComputer(db, payload) {
     branch_name = 'Merkez Ofis',
     computer_name,
     assigned_user = '',
+    user_email = '',
     department = 'Genel',
     device_type = 'Masaüstü',
     brand = '',
@@ -618,6 +647,7 @@ function handleRegisterComputer(db, payload) {
         branch_name = COALESCE(NULLIF(?, ''), branch_name),
         computer_name = ?,
         assigned_user = COALESCE(NULLIF(?, ''), assigned_user),
+        user_email = COALESCE(NULLIF(?, ''), user_email),
         device_type = COALESCE(NULLIF(?, ''), device_type),
         brand = COALESCE(NULLIF(?, ''), brand),
         model = COALESCE(NULLIF(?, ''), model),
@@ -640,6 +670,7 @@ function handleRegisterComputer(db, payload) {
       branch_name,
       computer_name.trim(),
       assigned_user.trim(),
+      user_email ? user_email.trim() : '',
       device_type,
       brand.trim(),
       model.trim(),
@@ -668,18 +699,19 @@ function handleRegisterComputer(db, payload) {
     // Insert new record
     const insertStmt = db.prepare(`
       INSERT INTO user_computers (
-        customer_id, computer_name, assigned_user, department, branch_name,
+        customer_id, computer_name, assigned_user, user_email, department, branch_name,
         device_type, brand, model, serial_number, hardware_specs,
         os_version, os_license_key, office_version, office_license_key,
         ethernet_ip, ethernet_mac, wifi_ip, wifi_mac,
         remote_access_id, antivirus, notes, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
 
     const result = insertStmt.run(
       customer_id,
       computer_name.trim(),
       assigned_user.trim(),
+      user_email ? user_email.trim() : '',
       department || 'Genel',
       branch_name || 'Merkez Ofis',
       device_type || 'Masaüstü',

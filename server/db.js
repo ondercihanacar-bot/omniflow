@@ -99,6 +99,7 @@ db.exec(`
     customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
     computer_name TEXT NOT NULL,
     assigned_user TEXT,
+    user_email TEXT,
     department TEXT,
     branch_name TEXT DEFAULT 'Merkez Ofis',
     device_type TEXT DEFAULT 'Masaüstü',
@@ -363,6 +364,7 @@ function runMigrations() {
   tryAddCol('virtual_machines', 'local_admin_password TEXT');
   tryAddCol('user_computers', 'local_admin_user TEXT');
   tryAddCol('user_computers', 'local_admin_password TEXT');
+  tryAddCol('user_computers', 'user_email TEXT');
 
   // Microsoft 365 / Exchange API credentials
   tryAddCol('mail_services', 'm365_tenant_id TEXT');

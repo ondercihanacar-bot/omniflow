@@ -30,6 +30,30 @@ export function launchAnyDesk(remoteId) {
 }
 
 /**
+ * Launch TeamViewer desktop client with the given remote access ID
+ * @param {string} remoteId - TeamViewer ID
+ */
+export function launchTeamViewer(remoteId) {
+  if (!remoteId) return false;
+  const cleanId = String(remoteId).replace(/[^0-9]/g, '');
+  if (!cleanId) return false;
+
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = `teamviewer10://remotecontrol?id=${cleanId}`;
+  document.body.appendChild(iframe);
+  setTimeout(() => {
+    try { document.body.removeChild(iframe); } catch (e) {}
+  }, 2000);
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(cleanId).catch(() => {});
+  }
+
+  return true;
+}
+
+/**
  * Generate and trigger download of a Windows .rdp file for instant mstsc launch
  * @param {string} host - IP address or hostname
  * @param {string} username - Remote desktop username

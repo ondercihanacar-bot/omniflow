@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Building2, X, Server, Cloud, Laptop, Shield, Database,
   Sparkles, ClipboardPaste, Check, AlertCircle, ChevronDown, ChevronUp,
-  Plus, Trash2, Search, Network
+  Plus, Trash2, Search, Network, Mail, User
 } from 'lucide-react';
 
 // ==================== PREDEFINED ENTERPRISE IT PRESETS ====================
@@ -1512,6 +1512,7 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
     customer_id: customerId,
     computer_name: '',
     assigned_user: '',
+    user_email: '',
     branch_name: 'Merkez Ofis',
     department: '',
     device_type: 'Masaüstü',
@@ -1541,6 +1542,7 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
         branch_name: 'Merkez Ofis',
         local_admin_user: '',
         local_admin_password: '',
+        user_email: '',
         ...computer,
         customer_id: computer.customer_id || customerId
       });
@@ -1549,6 +1551,7 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
         customer_id: customerId,
         computer_name: '',
         assigned_user: '',
+        user_email: '',
         branch_name: (branches && branches[0]) || 'Merkez Ofis',
         department: '',
         device_type: 'Masaüstü',
@@ -1606,8 +1609,8 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
           }}
           className="p-6 space-y-4 max-h-[80vh] overflow-y-auto"
         >
-          {/* Identity & User */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          {/* Identity & Basic Info */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Makina Adı (Hostname) *</label>
               <input
@@ -1627,31 +1630,6 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
               colorScheme="emerald"
             />
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Zimmetli Kullanıcı</label>
-              <input
-                type="text"
-                placeholder="Örn: Ahmet Yılmaz"
-                value={formData.assigned_user}
-                onChange={(e) => setFormData({ ...formData, assigned_user: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <PresetCombobox
-                label="Departman"
-                presetKey="pc_department"
-                defaultOptions={DEFAULT_DEPARTMENTS}
-                value={formData.department}
-                onChange={(val) => setFormData({ ...formData, department: val })}
-                placeholder="Örn: Muhasebe"
-                colorScheme="emerald"
-              />
-            </div>
-          </div>
-
-          {/* Device Specs */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div>
               <PresetCombobox
                 label="Cihaz Türü"
                 presetKey="pc_device_type"
@@ -1662,6 +1640,57 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
                 colorScheme="emerald"
               />
             </div>
+          </div>
+
+          {/* User & Personnel Info */}
+          <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2.5">
+            <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wider">
+              <User className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Kullanıcı & Zimmet Bilgileri</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Kullanıcı / Personel Adı</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Örn: Ahmet Yılmaz"
+                    value={formData.assigned_user || ''}
+                    onChange={(e) => setFormData({ ...formData, assigned_user: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                  />
+                  <User className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Kullanıcı E-posta / Mail Adresi</label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    placeholder="Örn: ahmet.yilmaz@sirket.com"
+                    value={formData.user_email || ''}
+                    onChange={(e) => setFormData({ ...formData, user_email: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none font-mono"
+                  />
+                  <Mail className="w-4 h-4 text-cyan-400 absolute left-2.5 top-2.5" />
+                </div>
+              </div>
+              <div>
+                <PresetCombobox
+                  label="Departman"
+                  presetKey="pc_department"
+                  defaultOptions={DEFAULT_DEPARTMENTS}
+                  value={formData.department}
+                  onChange={(val) => setFormData({ ...formData, department: val })}
+                  placeholder="Örn: Muhasebe"
+                  colorScheme="emerald"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Device Specs */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <PresetCombobox
                 label="Marka"
@@ -1849,11 +1878,14 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
           {/* Remote Access & Notes */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-800 pt-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Uzak Bağlantı (AnyDesk / TV ID)</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                <span>TeamViewer ID</span>
+                <span className="text-[10px] text-blue-400 font-normal">Uzak Bağlantı</span>
+              </label>
               <input
                 type="text"
-                placeholder="Örn: AnyDesk: 849 221 002"
-                value={formData.remote_access_id}
+                placeholder="Örn: 1794260854"
+                value={formData.remote_access_id || ''}
                 onChange={(e) => setFormData({ ...formData, remote_access_id: e.target.value })}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-emerald-500 focus:outline-none"
               />

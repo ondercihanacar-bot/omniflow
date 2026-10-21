@@ -1835,7 +1835,7 @@ app.get('/api/user-computers', (req, res) => {
 app.post('/api/user-computers', (req, res) => {
   try {
     const {
-      customer_id, computer_name, assigned_user, department, branch_name, device_type, brand, model,
+      customer_id, computer_name, assigned_user, user_email, department, branch_name, device_type, brand, model,
       serial_number, hardware_specs, os_version, os_license_key, office_version, office_license_key,
       ethernet_ip, ethernet_mac, wifi_ip, wifi_mac, remote_access_id,
       local_admin_user, local_admin_password, antivirus, notes
@@ -1847,15 +1847,15 @@ app.post('/api/user-computers', (req, res) => {
 
     const stmt = db.prepare(`
       INSERT INTO user_computers (
-        customer_id, computer_name, assigned_user, department, branch_name, device_type, brand, model,
+        customer_id, computer_name, assigned_user, user_email, department, branch_name, device_type, brand, model,
         serial_number, hardware_specs, os_version, os_license_key, office_version, office_license_key,
         ethernet_ip, ethernet_mac, wifi_ip, wifi_mac, remote_access_id,
         local_admin_user, local_admin_password, antivirus, notes, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
 
     const result = stmt.run(
-      customer_id, computer_name.trim(), assigned_user || '', department || '', branch_name || 'Merkez Ofis', device_type || 'Masaüstü',
+      customer_id, computer_name.trim(), assigned_user || '', user_email || '', department || '', branch_name || 'Merkez Ofis', device_type || 'Masaüstü',
       brand || '', model || '', serial_number || '', hardware_specs || '',
       os_version || '', os_license_key || '', office_version || '', office_license_key || '',
       ethernet_ip || '', ethernet_mac || '', wifi_ip || '', wifi_mac || '',
@@ -1873,7 +1873,7 @@ app.post('/api/user-computers', (req, res) => {
 app.put('/api/user-computers/:id', (req, res) => {
   try {
     const {
-      computer_name, assigned_user, department, branch_name, device_type, brand, model,
+      computer_name, assigned_user, user_email, department, branch_name, device_type, brand, model,
       serial_number, hardware_specs, os_version, os_license_key, office_version, office_license_key,
       ethernet_ip, ethernet_mac, wifi_ip, wifi_mac, remote_access_id,
       local_admin_user, local_admin_password, antivirus, notes
@@ -1881,7 +1881,7 @@ app.put('/api/user-computers/:id', (req, res) => {
 
     const stmt = db.prepare(`
       UPDATE user_computers SET
-        computer_name = ?, assigned_user = ?, department = ?, branch_name = ?, device_type = ?, brand = ?, model = ?,
+        computer_name = ?, assigned_user = ?, user_email = ?, department = ?, branch_name = ?, device_type = ?, brand = ?, model = ?,
         serial_number = ?, hardware_specs = ?, os_version = ?, os_license_key = ?, office_version = ?, office_license_key = ?,
         ethernet_ip = ?, ethernet_mac = ?, wifi_ip = ?, wifi_mac = ?, remote_access_id = ?,
         local_admin_user = ?, local_admin_password = ?, antivirus = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
@@ -1889,7 +1889,7 @@ app.put('/api/user-computers/:id', (req, res) => {
     `);
 
     stmt.run(
-      computer_name.trim(), assigned_user || '', department || '', branch_name || 'Merkez Ofis', device_type || 'Masaüstü',
+      computer_name.trim(), assigned_user || '', user_email || '', department || '', branch_name || 'Merkez Ofis', device_type || 'Masaüstü',
       brand || '', model || '', serial_number || '', hardware_specs || '',
       os_version || '', os_license_key || '', office_version || '', office_license_key || '',
       ethernet_ip || '', ethernet_mac || '', wifi_ip || '', wifi_mac || '',
