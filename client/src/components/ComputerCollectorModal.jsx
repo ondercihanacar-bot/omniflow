@@ -27,6 +27,10 @@ export default function ComputerCollectorModal({
 
   useEffect(() => {
     setTargetType(initialTargetType || 'computer');
+    if (!isOpen) {
+      setOfflineJson('');
+      setOfflineError(null);
+    }
   }, [initialTargetType, isOpen]);
 
   // Load server LAN IPs
@@ -107,6 +111,8 @@ export default function ComputerCollectorModal({
       }
 
       const entityName = isVM ? 'Sanal Makine (VM)' : (isServer ? 'Fiziki Sunucu' : 'Kullanıcı PC');
+      setOfflineJson('');
+      setOfflineError(null);
       alert(`✅ Başarılı: ${entityName} envantere kaydedildi! (${customer.name})`);
       if (onSuccess) onSuccess();
       onClose();
@@ -121,6 +127,8 @@ export default function ComputerCollectorModal({
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Kayıt başarısız');
+        setOfflineJson('');
+        setOfflineError(null);
         alert(`✅ Başarılı: ${data.message || 'Kayıt tamamlandı!'}`);
         if (onSuccess) onSuccess();
         onClose();

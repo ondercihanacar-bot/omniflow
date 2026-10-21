@@ -523,6 +523,37 @@ if %errorlevel% neq 0 (
 `;
 }
 
+function isGenericSerialNumber(sn) {
+  if (!sn || typeof sn !== 'string') return true;
+  const s = sn.trim().toLowerCase();
+  if (s.length < 4) return true;
+  const genericSerials = [
+    'to be filled by o.e.m.',
+    'to be filled by oem',
+    'default string',
+    'system serial number',
+    'chassis serial number',
+    'base board serial number',
+    'serial number',
+    'serialnumber',
+    'none',
+    'null',
+    'unknown',
+    'undefined',
+    'not specified',
+    'not applicable',
+    'n/a',
+    'na',
+    '0123456789',
+    '123456789',
+    '1234567890',
+    'all',
+    'oem',
+    'system manufacturer'
+  ];
+  return genericSerials.includes(s) || /^(0+|1+|x+|9+)$/.test(s);
+}
+
 function handleRegisterComputer(db, payload) {
   const {
     customer_id,
@@ -558,20 +589,26 @@ function handleRegisterComputer(db, payload) {
     throw new Error(`Müşteri bulunamadı (ID: ${customer_id})`);
   }
 
-  // Find existing computer by serial_number or computer_name for this customer
+  // Find existing computer strictly within this customer:
+  // Primary identifier: computer_name (Each PC name in a customer is unique, e.g. AHMET-PC, MEHMET-PC).
+  // Serial number is used ONLY if it is genuine (not a generic OEM/dummy string) AND the candidate's computer_name matches or is blank.
   let existing = null;
-  if (serial_number && serial_number.trim()) {
-    existing = db.prepare(`
-      SELECT * FROM user_computers 
-      WHERE customer_id = ? AND LOWER(serial_number) = LOWER(?)
-    `).get(customer_id, serial_number.trim());
-  }
-
-  if (!existing && computer_name) {
+  if (computer_name && computer_name.trim()) {
     existing = db.prepare(`
       SELECT * FROM user_computers 
       WHERE customer_id = ? AND LOWER(computer_name) = LOWER(?)
     `).get(customer_id, computer_name.trim());
+  }
+
+  if (!existing && serial_number && !isGenericSerialNumber(serial_number)) {
+    const candidate = db.prepare(`
+      SELECT * FROM user_computers 
+      WHERE customer_id = ? AND LOWER(serial_number) = LOWER(?)
+    `).get(customer_id, serial_number.trim());
+
+    if (candidate && (!candidate.computer_name || candidate.computer_name.toLowerCase() === computer_name.trim().toLowerCase())) {
+      existing = candidate;
+    }
   }
 
   if (existing) {
@@ -711,20 +748,26 @@ function handleRegisterServer(db, payload) {
     throw new Error(`Müşteri bulunamadı (ID: ${customer_id})`);
   }
 
-  // Check if server exists by serial or server_name
+  // Check if server exists strictly within this customer:
+  // Primary identifier: server_name (Each server in a customer is unique, e.g. SRV-01, SRV-02).
+  // Serial number is used ONLY if genuine (non-generic) AND the candidate's server_name matches or is blank.
   let existing = null;
-  if (serial_number && serial_number.trim()) {
-    existing = db.prepare(`
-      SELECT * FROM physical_servers 
-      WHERE customer_id = ? AND LOWER(serial_number) = LOWER(?)
-    `).get(customer_id, serial_number.trim());
-  }
-
-  if (!existing && server_name) {
+  if (server_name && server_name.trim()) {
     existing = db.prepare(`
       SELECT * FROM physical_servers 
       WHERE customer_id = ? AND LOWER(server_name) = LOWER(?)
     `).get(customer_id, server_name.trim());
+  }
+
+  if (!existing && serial_number && !isGenericSerialNumber(serial_number)) {
+    const candidate = db.prepare(`
+      SELECT * FROM physical_servers 
+      WHERE customer_id = ? AND LOWER(serial_number) = LOWER(?)
+    `).get(customer_id, serial_number.trim());
+
+    if (candidate && (!candidate.server_name || candidate.server_name.toLowerCase() === server_name.trim().toLowerCase())) {
+      existing = candidate;
+    }
   }
 
   if (existing) {
