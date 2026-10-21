@@ -47,7 +47,7 @@ import { checkPermission } from './utils/permissions';
 import {
   Building2, Globe, Phone, Mail, Edit, Trash2, LayoutDashboard,
   Server, Cloud, Laptop, Shield, ShieldCheck, Database, Plus, RefreshCw,
-  Network, FileSpreadsheet, Printer, Wifi, BookOpen, Lock, Key, AlertCircle, Award, QrCode, Home
+  Network, FileSpreadsheet, Printer, Wifi, BookOpen, Lock, Key, AlertCircle, Award, QrCode, Home, MapPin
 } from 'lucide-react';
 import { useLanguage } from './context/LanguageContext';
 
