@@ -11,6 +11,7 @@ import { useLanguage } from '../context/LanguageContext';
 export default function Navbar({
   stats,
   onOpenSearch,
+  onGoHome,
   urgentLicenseCount = 0,
   criticalLicenseCount = 0,
   warningLicenseCount = 0,
@@ -87,9 +88,25 @@ export default function Navbar({
             </button>
           )}
 
-          {/* Beveled, beautifully integrated video logo */}
-          <div className="flex-1 h-full flex items-center justify-center overflow-hidden">
-            <BrandLogo size="banner" />
+          {/* Beveled, beautifully integrated video logo - Click to go Home/Overview */}
+          <div
+            onClick={onGoHome}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if ((e.key === 'Enter' || e.key === ' ') && onGoHome) {
+                e.preventDefault();
+                onGoHome();
+              }
+            }}
+            className="flex-1 h-full flex items-center justify-center overflow-hidden cursor-pointer group select-none"
+            title={t('navbar.goHome') || 'OmniFlow - Ana Sayfaya Git'}
+          >
+            <BrandLogo
+              size="banner"
+              onClick={onGoHome}
+              className="group-hover:scale-[1.02] group-hover:border-blue-500/60 transition-all duration-200"
+            />
           </div>
         </div>
 

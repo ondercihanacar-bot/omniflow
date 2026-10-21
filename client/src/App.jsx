@@ -371,6 +371,15 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Logo click triggers direct navigation to Home / Overview
+  const handleGoHome = () => {
+    setViewMode('customer');
+    setActiveTab('overview');
+    if (customers.length > 0 && !selectedCustomerId) {
+      setSelectedCustomerId(customers[0].id);
+    }
+  };
+
   // ---------------- Customer CRUD ----------------
   const handleSaveCustomer = async (formData) => {
     try {
@@ -1007,6 +1016,7 @@ export default function App() {
       <Navbar
         stats={stats}
         onOpenSearch={() => setIsSearchModalOpen(true)}
+        onGoHome={handleGoHome}
         urgentLicenseCount={urgentLicenseAlerts.length}
         criticalLicenseCount={criticalLicenseAlerts.length}
         warningLicenseCount={warningLicenseAlerts.length}

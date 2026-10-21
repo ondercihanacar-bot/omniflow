@@ -5,7 +5,8 @@ import SeamlessVideo from './SeamlessVideo';
 export default function BrandLogo({
   size = 'md',
   variant = 'terminal',
-  className = ''
+  className = '',
+  onClick = null
 }) {
   const [videoError, setVideoError] = useState(false);
 
@@ -26,7 +27,8 @@ export default function BrandLogo({
     if (size === 'banner') {
       return (
         <div
-          className={`relative flex items-center justify-center rounded-xl border border-slate-800/80 bg-slate-950/60 shadow-sm overflow-hidden p-0.5 ${currentSize} ${className}`}
+          onClick={onClick}
+          className={`relative flex items-center justify-center rounded-xl border border-slate-800/80 bg-slate-950/60 shadow-sm overflow-hidden p-0.5 ${currentSize} ${onClick ? 'cursor-pointer' : ''} ${className}`}
           title="OmniFlow"
         >
           <SeamlessVideo
@@ -85,7 +87,10 @@ export default function BrandLogo({
 
   // Graceful fallback to modern SVG gradient icon if video is absent or errors
   return (
-    <div className={`flex items-center justify-center shrink-0 rounded-2xl shadow-md bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white border border-blue-400/30 ${currentSize} ${className}`}>
+    <div
+      onClick={onClick}
+      className={`flex items-center justify-center shrink-0 rounded-2xl shadow-md bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white border border-blue-400/30 ${currentSize} ${onClick ? 'cursor-pointer' : ''} ${className}`}
+    >
       {variant === 'shield' ? (
         <ShieldCheck className={size === 'lg' || size === 'xl' || size === 'auth' || size === 'banner' ? 'w-8 h-8' : 'w-5 h-5'} />
       ) : (

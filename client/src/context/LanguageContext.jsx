@@ -72,6 +72,7 @@ export const translations = {
 
     // Top Navbar
     navbar: {
+      goHome: 'Ana Sayfaya Git (OmniFlow)',
       searchPlaceholder: 'IP, MAC, Lisans ara...',
       searchKbd: 'Ctrl+K',
       searchTooltip: 'Sistemde Ara (Ctrl+K)',
@@ -337,6 +338,7 @@ export const translations = {
 
     // Top Navbar
     navbar: {
+      goHome: 'Go to Home / Overview (OmniFlow)',
       searchPlaceholder: 'Search IP, MAC, License...',
       searchKbd: 'Ctrl+K',
       searchTooltip: 'Search System (Ctrl+K)',
