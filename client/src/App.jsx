@@ -250,20 +250,22 @@ export default function App() {
     localStorage.setItem('itmanager_neon_enabled', String(enabled));
   };
 
-  const customerBranches = Array.from(
-    new Set([
-      'Merkez Ofis',
-      ...(customerData?.internet_lines || []).map(l => l.branch_name),
-      ...(customerData?.user_computers || []).map(c => c.branch_name),
-      ...(customerData?.physical_servers || []).map(s => s.branch_name),
-      ...(customerData?.firewalls || []).map(f => f.branch_name),
-      ...(customerData?.backup_units || []).map(b => b.branch_name),
-      ...(customerData?.wifi_controllers || []).map(w => w.branch_name),
-      ...(customerData?.wifi_access_points || []).map(a => a.branch_name),
-      ...(customerData?.wifi_networks || []).map(n => n.branch_name && n.branch_name !== 'Tüm Şubeler' ? n.branch_name : null),
-      ...(customerData?.antivirus_licenses || []).map(a => a.branch_name)
-    ].filter(Boolean))
-  );
+  const customerBranches = useMemo(() => {
+    return Array.from(
+      new Set([
+        'Merkez Ofis',
+        ...(customerData?.internet_lines || []).map(l => l.branch_name),
+        ...(customerData?.user_computers || []).map(c => c.branch_name),
+        ...(customerData?.physical_servers || []).map(s => s.branch_name),
+        ...(customerData?.firewalls || []).map(f => f.branch_name),
+        ...(customerData?.backup_units || []).map(b => b.branch_name),
+        ...(customerData?.wifi_controllers || []).map(w => w.branch_name),
+        ...(customerData?.wifi_access_points || []).map(a => a.branch_name),
+        ...(customerData?.wifi_networks || []).map(n => n.branch_name && n.branch_name !== 'Tüm Şubeler' ? n.branch_name : null),
+        ...(customerData?.antivirus_licenses || []).map(a => a.branch_name)
+      ].filter(Boolean))
+    );
+  }, [customerData]);
 
   // Load all initial data
   const loadStats = useCallback(async () => {
@@ -1674,7 +1676,7 @@ export default function App() {
 
                 {activeTab === 'servers' && (
                   <PhysicalServersTab
-                    customer={selectedCustomer}
+                    customer={customerData}
                     servers={customerData.physical_servers || []}
                     branches={customerBranches}
                     canEdit={checkPermission(currentUser, 'edit')}
@@ -1689,7 +1691,7 @@ export default function App() {
                       setIsServerModalOpen(true);
                     }}
                     onDelete={handleDeleteServer}
-                    onReloadCustomer={() => selectedCustomer && loadCustomerDetails(selectedCustomer.id)}
+                    onReloadCustomer={() => customerData && loadCustomerDetails(customerData.id)}
                   />
                 )}
 

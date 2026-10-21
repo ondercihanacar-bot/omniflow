@@ -43,13 +43,6 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer = null
     setIsSubmitting(false);
   }, [customer, isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
@@ -71,7 +64,6 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer = null
 
   return (
     <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in"
     >
       <div className="bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden text-slate-100">
@@ -89,15 +81,24 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer = null
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-6 space-y-4 max-h-[80vh] overflow-y-auto"
+        >
           {error && (
             <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg text-sm">
               {error}

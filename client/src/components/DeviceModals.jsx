@@ -552,6 +552,7 @@ export function ServerModal({ isOpen, onClose, onSave, server = null, customerId
   });
 
   useEffect(() => {
+    if (!isOpen) return;
     if (server) {
       setFormData({
         branch_name: 'Merkez Ofis',
@@ -577,26 +578,18 @@ export function ServerModal({ isOpen, onClose, onSave, server = null, customerId
         management_password: '',
         local_admin_user: '',
         local_admin_password: '',
-        branch_name: branches[0] || 'Merkez Ofis',
+        branch_name: (branches && branches[0]) || 'Merkez Ofis',
         location: '',
         status: 'Aktif',
         notes: ''
       });
     }
-  }, [server, customerId, isOpen, branches]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, server?.id, customerId]);
 
   if (!isOpen) return null;
 
   return (
     <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto"
     >
       <div className="bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl max-w-2xl w-full my-8 text-slate-100 overflow-hidden">
@@ -612,12 +605,20 @@ export function ServerModal({ isOpen, onClose, onSave, server = null, customerId
               <p className="text-xs text-slate-400">Marka, model, donanım özellikleri, IP, MAC ve yönetim arayüzü</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form
+          onSubmit={(e) => { e.preventDefault(); onSave(formData); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-6 space-y-4 max-h-[80vh] overflow-y-auto"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-slate-300 mb-1">Sunucu Adı (Hostname) *</label>
@@ -890,6 +891,7 @@ export function VMModal({ isOpen, onClose, onSave, vm = null, customerId, physic
   });
 
   useEffect(() => {
+    if (!isOpen) return;
     if (vm) {
       setFormData({
         local_admin_user: '',
@@ -920,20 +922,12 @@ export function VMModal({ isOpen, onClose, onSave, vm = null, customerId, physic
         notes: ''
       });
     }
-  }, [vm, customerId, isOpen, physicalServers]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, vm?.id, customerId]);
 
   if (!isOpen) return null;
 
   return (
     <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto"
     >
       <div className="bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl max-w-2xl w-full my-8 text-slate-100 overflow-hidden">
@@ -949,12 +943,20 @@ export function VMModal({ isOpen, onClose, onSave, vm = null, customerId, physic
               <p className="text-xs text-slate-400">VM donanımı, Windows & Office lisans anahtarları, IP ve MAC</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form
+          onSubmit={(e) => { e.preventDefault(); onSave(formData); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-6 space-y-4 max-h-[80vh] overflow-y-auto"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Sanal Makine Adı (VM Hostname) *</label>
@@ -1226,6 +1228,7 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
   });
 
   useEffect(() => {
+    if (!isOpen) return;
     if (computer) {
       setFormData({
         branch_name: 'Merkez Ofis',
@@ -1239,7 +1242,7 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
         customer_id: customerId,
         computer_name: '',
         assigned_user: '',
-        branch_name: branches[0] || 'Merkez Ofis',
+        branch_name: (branches && branches[0]) || 'Merkez Ofis',
         department: '',
         device_type: 'Masaüstü',
         brand: '',
@@ -1261,20 +1264,12 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
         notes: ''
       });
     }
-  }, [computer, customerId, isOpen, branches]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, computer?.id, customerId]);
 
   if (!isOpen) return null;
 
   return (
     <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto"
     >
       <div className="bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl max-w-3xl w-full my-8 text-slate-100 overflow-hidden">
@@ -1290,12 +1285,20 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
               <p className="text-xs text-slate-400">Marka, model, donanım, Windows & Office lisans keyleri, Ethernet & Wi-Fi IP/MAC</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form
+          onSubmit={(e) => { e.preventDefault(); onSave(formData); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-6 space-y-4 max-h-[80vh] overflow-y-auto"
+        >
           {/* Identity & User */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
@@ -1726,14 +1729,7 @@ export function FirewallModal({ isOpen, onClose, onSave, firewall = null, custom
     setShowManualPaste(false);
     setPasteInputText('');
     setSmartDetectionMsg(null);
-  }, [firewall, customerId, isOpen, branches]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, firewall?.id, customerId]);
 
   if (!isOpen) return null;
 
@@ -1796,7 +1792,6 @@ export function FirewallModal({ isOpen, onClose, onSave, firewall = null, custom
 
   return (
     <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto"
     >
       <div className="bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl max-w-2xl w-full my-8 text-slate-100 overflow-hidden">
@@ -1812,12 +1807,20 @@ export function FirewallModal({ isOpen, onClose, onSave, firewall = null, custom
               <p className="text-xs text-slate-400">Marka, model, arayüz giriş IP, kullanıcı adı, parola ve dış statik IP</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form
+          onSubmit={(e) => { e.preventDefault(); onSave(formData); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-6 space-y-4 max-h-[80vh] overflow-y-auto"
+        >
           {/* Smart Clipboard Auto-Fill Hero Banner */}
           <div className="bg-gradient-to-r from-rose-950/40 via-slate-900 to-indigo-950/40 border border-rose-500/30 rounded-xl p-3.5 flex flex-col gap-2.5 shadow-sm">
             <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -2092,6 +2095,7 @@ export function BackupModal({ isOpen, onClose, onSave, backup = null, customerId
   });
 
   useEffect(() => {
+    if (!isOpen) return;
     if (backup) {
       setFormData({
         branch_name: 'Merkez Ofis',
@@ -2103,7 +2107,7 @@ export function BackupModal({ isOpen, onClose, onSave, backup = null, customerId
       setFormData({
         customer_id: customerId,
         device_name: '',
-        branch_name: branches[0] || 'Merkez Ofis',
+        branch_name: (branches && branches[0]) || 'Merkez Ofis',
         location: '',
         brand: 'Synology',
         model: '',
@@ -2116,20 +2120,12 @@ export function BackupModal({ isOpen, onClose, onSave, backup = null, customerId
         notes: ''
       });
     }
-  }, [backup, customerId, isOpen, branches]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, backup?.id, customerId]);
 
   if (!isOpen) return null;
 
   return (
     <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto"
     >
       <div className="bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl max-w-2xl w-full my-8 text-slate-100 overflow-hidden">
@@ -2145,12 +2141,20 @@ export function BackupModal({ isOpen, onClose, onSave, backup = null, customerId
               <p className="text-xs text-slate-400">Marka, model, IP adresi, kullanıcı adı, parola ve yedekleme planı</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form
+          onSubmit={(e) => { e.preventDefault(); onSave(formData); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-6 space-y-4 max-h-[80vh] overflow-y-auto"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Cihaz Tanımı / Adı *</label>

@@ -242,7 +242,7 @@ export default function AntivirusModal({
     setShowManualPaste(false);
     setPasteInputText('');
     setSmartDetectionMsg(null);
-  }, [currentItem, customerId, isOpen, branches]);
+  }, [isOpen, currentItem?.id, customerId]);
 
   if (!isOpen) return null;
 
@@ -361,7 +361,15 @@ export default function AntivirusModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="flex-1 overflow-y-auto p-6 space-y-4"
+        >
           {error && (
             <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/40 border border-rose-800 rounded-xl">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
