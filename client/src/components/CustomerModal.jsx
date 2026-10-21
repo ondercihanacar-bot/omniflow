@@ -13,13 +13,14 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer = null
     notes: ''
   });
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (customer) {
       setFormData({
-        name: customer.name || '',
-        code: customer.code || '',
-        contact_person: customer.contact_person || '',
+        name: customer.name || customer.company_name || '',
+        code: customer.code || customer.short_code || '',
+        contact_person: customer.contact_person || customer.authorized_person || '',
         phone: customer.phone || '',
         email: customer.email || '',
         address: customer.address || '',
@@ -39,6 +40,7 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer = null
       });
     }
     setError('');
+    setIsSubmitting(false);
   }, [customer, isOpen]);
 
   useEffect(() => {
@@ -50,13 +52,21 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer = null
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
       setError('Müşteri / Şirket Adı zorunludur.');
       return;
     }
-    onSave(formData);
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await onSave(formData);
+    } catch (err) {
+      setError(err.message || 'Müşteri bilgileri kaydedilemedi.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -216,15 +226,24 @@ export default function CustomerModal({ isOpen, onClose, onSave, customer = null
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors cursor-pointer"
+              disabled={isSubmitting}
+              className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 disabled:opacity-50 rounded-lg border border-slate-700 transition-colors cursor-pointer"
             >
               İptal
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg shadow-md transition-colors cursor-pointer"
+              disabled={isSubmitting}
+              className="px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-md transition-colors cursor-pointer flex items-center gap-2"
             >
-              {customer ? 'Güncelle' : 'Müşteriyi Kaydet'}
+              {isSubmitting ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Kaydediliyor...</span>
+                </>
+              ) : (
+                <span>{customer ? 'Güncelle' : 'Müşteriyi Kaydet'}</span>
+              )}
             </button>
           </div>
         </form>

@@ -355,18 +355,30 @@ export default function App() {
   // ---------------- Customer CRUD ----------------
   const handleSaveCustomer = async (formData) => {
     try {
+      let targetId = selectedCustomerId;
       if (editingCustomer) {
-        await api.updateCustomer(editingCustomer.id, formData);
+        targetId = editingCustomer.id;
+        const updated = await api.updateCustomer(targetId, formData);
+        // Immediate local state update so the whole UI reflects the changes instantly
+        setCustomerData(prev => (prev && prev.id === targetId ? { ...prev, ...updated, ...formData } : prev));
       } else {
         const newCust = await api.createCustomer(formData);
-        setSelectedCustomerId(newCust.id);
+        targetId = newCust.id;
+        setSelectedCustomerId(targetId);
       }
       setIsCustomerModalOpen(false);
       setEditingCustomer(null);
-      await loadCustomers(editingCustomer ? editingCustomer.id : null);
-      await loadStats();
+
+      // Re-fetch customer details, customers list, and stats concurrently
+      await Promise.all([
+        loadCustomerDetails(targetId),
+        loadCustomers(targetId),
+        loadStats()
+      ]);
     } catch (err) {
-      alert(err.message);
+      console.error('Customer save error:', err);
+      alert(err.message || 'Müşteri kaydedilirken bir hata oluştu.');
+      throw err;
     }
   };
 

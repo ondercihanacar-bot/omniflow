@@ -73,8 +73,9 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Müşteri eklenemedi');
-    return res.json();
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(result.error || 'Müşteri eklenemedi');
+    return result;
   },
 
   updateCustomer: async (id, data) => {
@@ -83,8 +84,9 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Müşteri güncellenemedi');
-    return res.json();
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(result.error || 'Müşteri güncellenemedi');
+    return result;
   },
 
   deleteCustomer: async (id, adminPassword = null) => {
