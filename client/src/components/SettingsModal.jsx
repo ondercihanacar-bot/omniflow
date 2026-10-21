@@ -905,12 +905,14 @@ export default function SettingsModal({
           permissions: editRole === 'admin' ? ADMIN_PERMISSIONS : editPerms
         };
         try {
-          const raw = localStorage.getItem('itmanager_user_session') || sessionStorage.getItem('itmanager_user_session');
+          const raw = sessionStorage.getItem('itmanager_user_session');
           if (raw) {
             const parsed = JSON.parse(raw);
             const newSession = { ...parsed, user: updatedUser };
-            localStorage.setItem('itmanager_user_session', JSON.stringify(newSession));
+            sessionStorage.setItem('itmanager_user_session', JSON.stringify(newSession));
           }
+          localStorage.removeItem('itmanager_user_session');
+          localStorage.removeItem('itmanager_admin_logged_in');
         } catch (e) {}
         if (typeof onUpdateCurrentUser === 'function') {
           onUpdateCurrentUser(updatedUser);

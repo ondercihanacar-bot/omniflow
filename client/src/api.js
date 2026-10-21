@@ -2,7 +2,8 @@ const API_BASE = '/api';
 
 function getAuthToken() {
   try {
-    const raw = localStorage.getItem('itmanager_user_session') || sessionStorage.getItem('itmanager_user_session');
+    // Oturum sadece sessionStorage üzerinde tutulur (tarayıcı kapatıldığında otomatik silinir)
+    const raw = sessionStorage.getItem('itmanager_user_session');
     if (raw) {
       const parsed = JSON.parse(raw);
       return parsed?.token || null;
@@ -23,9 +24,12 @@ async function authFetch(url, options = {}) {
   const res = await window.fetch(url, { ...options, headers });
 
   if (res.status === 401 && !url.includes('/api/auth/login') && !url.includes('/api/auth/register')) {
-    localStorage.removeItem('itmanager_user_session');
-    sessionStorage.removeItem('itmanager_user_session');
-    localStorage.removeItem('itmanager_admin_logged_in');
+    try {
+      sessionStorage.removeItem('itmanager_user_session');
+      sessionStorage.removeItem('itmanager_admin_logged_in');
+      localStorage.removeItem('itmanager_user_session');
+      localStorage.removeItem('itmanager_admin_logged_in');
+    } catch (e) {}
     window.dispatchEvent(new CustomEvent('itm_auth_required'));
   }
 

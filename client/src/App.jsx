@@ -150,9 +150,15 @@ export default function App() {
   };
 
   // User Authentication & Session State
+  // Web sayfasını her kapatıp açtığımızda oturum sıfırlanmalı ve giriş ekranı gelmelidir.
+  // Oturum sadece aktif sekme süresince (sessionStorage) tutulur, localStorage'da saklanmaz.
   const [currentUser, setCurrentUser] = useState(() => {
     try {
-      const saved = localStorage.getItem('itmanager_user_session') || sessionStorage.getItem('itmanager_user_session');
+      // Temizleme: Eski kalıcı localStorage oturumlarını otomatik temizle
+      localStorage.removeItem('itmanager_user_session');
+      localStorage.removeItem('itmanager_admin_logged_in');
+
+      const saved = sessionStorage.getItem('itmanager_user_session');
       if (saved) {
         const parsed = JSON.parse(saved);
         return parsed.user || parsed;
@@ -164,16 +170,23 @@ export default function App() {
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
     setIsAdminLoggedIn(true);
-    localStorage.setItem('itmanager_admin_logged_in', 'true');
+    sessionStorage.setItem('itmanager_admin_logged_in', 'true');
+    try {
+      localStorage.removeItem('itmanager_user_session');
+      localStorage.removeItem('itmanager_admin_logged_in');
+    } catch (e) {}
     loadCustomers();
     loadStats();
     loadLicenseAlerts();
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('itmanager_user_session');
-    sessionStorage.removeItem('itmanager_user_session');
-    localStorage.removeItem('itmanager_admin_logged_in');
+    try {
+      sessionStorage.removeItem('itmanager_user_session');
+      sessionStorage.removeItem('itmanager_admin_logged_in');
+      localStorage.removeItem('itmanager_user_session');
+      localStorage.removeItem('itmanager_admin_logged_in');
+    } catch (e) {}
     setCurrentUser(null);
     setIsAdminLoggedIn(false);
   };
@@ -181,6 +194,12 @@ export default function App() {
   // Listen for unauthorized/expired session events
   useEffect(() => {
     const handleAuthRequired = () => {
+      try {
+        sessionStorage.removeItem('itmanager_user_session');
+        sessionStorage.removeItem('itmanager_admin_logged_in');
+        localStorage.removeItem('itmanager_user_session');
+        localStorage.removeItem('itmanager_admin_logged_in');
+      } catch (e) {}
       setCurrentUser(null);
       setIsAdminLoggedIn(false);
     };
@@ -210,7 +229,7 @@ export default function App() {
   // Settings & Admin Login State
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
-    return localStorage.getItem('itmanager_admin_logged_in') === 'true' || !!localStorage.getItem('itmanager_user_session');
+    return sessionStorage.getItem('itmanager_admin_logged_in') === 'true' || !!sessionStorage.getItem('itmanager_user_session');
   });
   const [neonEnabled, setNeonEnabled] = useState(() => {
     const saved = localStorage.getItem('itmanager_neon_enabled');
@@ -219,7 +238,7 @@ export default function App() {
 
   const handleLoginAdmin = () => {
     setIsAdminLoggedIn(true);
-    localStorage.setItem('itmanager_admin_logged_in', 'true');
+    sessionStorage.setItem('itmanager_admin_logged_in', 'true');
   };
 
   const handleLogoutAdmin = () => {

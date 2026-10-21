@@ -15,10 +15,22 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   
   // Login State
-  const [loginUser, setLoginUser] = useState('onder.cihan.acar@gmail.com');
-  const [loginPass, setLoginPass] = useState('2213');
+  const [loginUser, setLoginUser] = useState(() => {
+    try {
+      return localStorage.getItem('itmanager_remembered_username') || 'onder.cihan.acar@gmail.com';
+    } catch (e) {
+      return 'onder.cihan.acar@gmail.com';
+    }
+  });
+  const [loginPass, setLoginPass] = useState('');
   const [showLoginPass, setShowLoginPass] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(() => {
+    try {
+      return localStorage.getItem('itmanager_remembered_username') !== null;
+    } catch (e) {
+      return true;
+    }
+  });
   
   // 2FA Step State
   const [is2FAStep, setIs2FAStep] = useState(false);
@@ -114,19 +126,26 @@ export default function AuthScreen({ onLoginSuccess }) {
       if (res.success && res.user) {
         setSuccessMsg(t('auth.loginSuccess'));
         
-        // Save session
+        // Save session strictly in sessionStorage (closing tab/browser will destroy session)
         const sessionData = {
           user: res.user,
           token: res.token,
           loginTime: new Date().toISOString()
         };
         
-        if (rememberMe) {
-          localStorage.setItem('itmanager_user_session', JSON.stringify(sessionData));
-        } else {
-          sessionStorage.setItem('itmanager_user_session', JSON.stringify(sessionData));
-        }
-        localStorage.setItem('itmanager_admin_logged_in', 'true');
+        sessionStorage.setItem('itmanager_user_session', JSON.stringify(sessionData));
+        sessionStorage.setItem('itmanager_admin_logged_in', 'true');
+
+        // Always remove persistent login tokens from localStorage so page reopen ALWAYS requires username/password
+        try {
+          localStorage.removeItem('itmanager_user_session');
+          localStorage.removeItem('itmanager_admin_logged_in');
+          if (rememberMe) {
+            localStorage.setItem('itmanager_remembered_username', loginUser.trim());
+          } else {
+            localStorage.removeItem('itmanager_remembered_username');
+          }
+        } catch (e) {}
 
         setTimeout(() => {
           onLoginSuccess(res.user);
