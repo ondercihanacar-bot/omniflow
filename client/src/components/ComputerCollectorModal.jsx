@@ -75,6 +75,11 @@ export default function ComputerCollectorModal({
   // CMD / Win+R command
   const psCommand = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${tlsFixPrefix} irm '${baseUrl}/api/agent/collector.ps1?c=${customer.id}&b=${branchParam}${typeParam}' | iex"`;
 
+  // Standalone Direct PowerShell command (runs offline, reads CIM directly, copies JSON to clipboard)
+  const standaloneCommand = isServer
+    ? `\$c=\$env:COMPUTERNAME;\$cs=Get-CimInstance Win32_ComputerSystem -EA 0;\$b=if(\$cs.Manufacturer){\$cs.Manufacturer.Trim()}else{'OEM'};\$m=if(\$cs.Model){\$cs.Model.Trim()}else{'Server'};\$s=(Get-CimInstance Win32_BIOS -EA 0).SerialNumber;\$cpus=Get-CimInstance Win32_Processor -EA 0;\$cc=(\$cpus|Measure-Object).Count;\$fc=(\$cpus|Select-Object -First 1);\$cm=if(\$fc.Name){\$fc.Name.Trim()}else{'Xeon'};\$mult=if(\$cc -gt 0){\$cc}else{1};\$cores=if(\$fc.NumberOfCores){\$fc.NumberOfCores*\$mult}else{0};\$ci=if(\$cc -gt 1){"\$cc x \$cm (\$cores Çekirdek)"}else{"\$cm (\$cores Çekirdek)"};\$rmBytes=(Get-CimInstance Win32_PhysicalMemory -EA 0|Measure-Object -Property Capacity -Sum).Sum;\$ri=if(\$rmBytes -gt 0){"\$([math]::Round(\$rmBytes/1GB)) GB RAM"}else{"32 GB RAM"};\$disks=Get-CimInstance Win32_DiskDrive -EA 0|ForEach-Object{"\$(\$_.Model) (\$([math]::Round(\$_.Size/1GB)) GB)"};\$dk=if(\$disks){(\$disks -join ' + ')}else{'RAID'};\$ethIp='';\$ethMac='';try{\$ad=Get-CimInstance Win32_NetworkAdapterConfiguration -Filter 'IPEnabled=True' -EA 0;foreach(\$a in \$ad){\$ipv4=(\$a.IPAddress|Where-Object{\$_ -match '^\\d+\\.\\d+\\.\\d+\\.\\d+$'}|Select-Object -First 1);if(\$ipv4 -and -not \$ethIp){\$ethIp=\$ipv4;\$ethMac=\$a.MACAddress}}}catch{};\$os=(Get-CimInstance Win32_OperatingSystem -EA 0).Caption;\$j=@{customer_id=${customer.id};branch_name='${selectedBranch}';server_name=\$c;brand=\$b;model=\$m;serial_number=\$s;cpu_info=\$ci;ram_info=\$ri;disk_info=\$dk;ip_address=\$ethIp;mac_address=\$ethMac;location='Sistem Odası';status='Aktif';notes="İşletim Sistemi: \$os"}|ConvertTo-Json -Compress;Clear-Host;Write-Host '==========================================' -ForegroundColor Green;Write-Host '  OMNIFlow Sunucu Bilgileri Toplandı!' -ForegroundColor Yellow;Write-Host '==========================================' -ForegroundColor Green;Write-Host "Sunucu: \$c (\$b \$m)" -ForegroundColor White;Write-Host "İşlemci: \$ci" -ForegroundColor White;Write-Host "Bellek: \$ri | Disk: \$dk" -ForegroundColor White;Write-Host "IP: \$ethIp | Seri No: \$s" -ForegroundColor White;Write-Host '==========================================' -ForegroundColor Green;Write-Host \$j -ForegroundColor Cyan;try{Set-Clipboard -Value \$j;Write-Host '\`n✅ Bilgiler panoya kopyalandı! OMNIFlow ekranında 3. Çevrimdışı Yapıştır sekmesine yapıştırıp kaydedin.' -ForegroundColor Green}catch{}`
+    : `\$c=\$env:COMPUTERNAME;\$u=\$env:USERNAME;\$cs=Get-CimInstance Win32_ComputerSystem -EA 0;\$b=if(\$cs.Manufacturer){\$cs.Manufacturer.Trim()}else{'OEM'};\$m=if(\$cs.Model){\$cs.Model.Trim()}else{'PC'};\$s=(Get-CimInstance Win32_BIOS -EA 0).SerialNumber;\$cpu=(Get-CimInstance Win32_Processor -EA 0|Select-Object -First 1).Name;\$rmBytes=(Get-CimInstance Win32_PhysicalMemory -EA 0|Measure-Object Capacity -Sum).Sum;\$ri=if(\$rmBytes -gt 0){"\$([math]::Round(\$rmBytes/1GB)) GB RAM"}else{''};\$disks=Get-CimInstance Win32_DiskDrive -EA 0|ForEach-Object{"\$(\$_.Model) (\$([math]::Round(\$_.Size/1GB)) GB)"};\$dk=if(\$disks){(\$disks -join ' + ')}else{''};\$specs=@(\$cpu,\$ri,\$dk)|Where-Object{\$_}|join ' / ';\$bat=Get-CimInstance Win32_Battery -EA 0;\$dtype=if(\$bat){'Laptop'}else{'Masaüstü'};\$os=(Get-CimInstance Win32_OperatingSystem -EA 0).Caption;\$key='';try{\$key=(Get-CimInstance -Query 'select OA3xOriginalProductKey from SoftwareLicensingService' -EA 0).OA3xOriginalProductKey}catch{};\$ad=Get-CimInstance Win32_NetworkAdapterConfiguration -Filter 'IPEnabled=True' -EA 0|Select-Object -First 1;\$ip=(\$ad.IPAddress|Where-Object{\$_ -match '^\\d+\\.\\d+\\.\\d+\\.\\d+$'}|Select-Object -First 1);\$mac=\$ad.MACAddress;\$j=@{customer_id=${customer.id};branch_name='${selectedBranch}';computer_name=\$c;assigned_user=\$u;brand=\$b;model=\$m;serial_number=\$s;hardware_specs=\$specs;os_version=\$os;os_license_key=\$key;device_type=\$dtype;ethernet_ip=\$ip;ethernet_mac=\$mac}|ConvertTo-Json -Compress;Clear-Host;Write-Host '==========================================' -ForegroundColor Green;Write-Host '  OMNIFlow Bilgisayar Bilgileri Toplandı!' -ForegroundColor Yellow;Write-Host '==========================================' -ForegroundColor Green;Write-Host \$j -ForegroundColor Cyan;try{Set-Clipboard -Value \$j;Write-Host '\`n✅ Bilgiler panoya kopyalandı! OMNIFlow 3. Çevrimdışı Yapıştır sekmesine yapıştırıp kaydedin.' -ForegroundColor Green}catch{}`;
+
   const downloadUrl = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&server_url=${encodeURIComponent(baseUrl)}&format=bat`;
   const downloadPs1Url = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&server_url=${encodeURIComponent(baseUrl)}&format=ps1`;
 
@@ -88,23 +93,34 @@ export default function ComputerCollectorModal({
       parsed.customer_id = customer.id;
       if (!parsed.branch_name) parsed.branch_name = selectedBranch;
 
-      const endpoint = isServer
-        ? `${baseUrl}/api/agent/register-server`
-        : `${baseUrl}/api/agent/register-computer`;
+      // Try saving via standard authenticated API first
+      let result;
+      if (isServer) {
+        result = await api.createServer(parsed);
+      } else {
+        result = await api.createComputer(parsed);
+      }
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(parsed)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Kayıt başarısız');
-
-      alert(`✅ Başarılı: ${data.message || (isServer ? 'Sunucu envantere eklendi!' : 'Bilgisayar envantere eklendi!')}`);
+      alert(`✅ Başarılı: ${isServer ? 'Fiziki Sunucu envantere kaydedildi!' : 'Kullanıcı PC envantere kaydedildi!'} (${customer.name})`);
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      setOfflineError(err.message || 'Geçersiz JSON verisi');
+      // Fallback to agent endpoint
+      try {
+        const endpoint = isServer ? '/api/agent/register-server' : '/api/agent/register-computer';
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(parsed)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Kayıt başarısız');
+        alert(`✅ Başarılı: ${data.message || 'Kayıt tamamlandı!'}`);
+        if (onSuccess) onSuccess();
+        onClose();
+      } catch (innerErr) {
+        setOfflineError(err.message || innerErr.message || 'Kayıt sırasında hata oluştu');
+      }
     } finally {
       setIsSubmittingOffline(false);
     }
@@ -310,6 +326,15 @@ export default function ComputerCollectorModal({
                     />
                   </div>
                 )}
+
+                {serverMode === 'cloud' && (
+                  <div className="bg-amber-950/40 border border-amber-500/40 rounded-xl p-3 text-xs text-amber-200 flex items-start gap-2.5 mt-2">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="leading-relaxed">
+                      <span className="font-bold text-amber-100">Render Bulut Servisi Uyarısı:</span> Render.com bulut servisi askıda (503 Service Suspended) olduğu için bulut çağrısı bağlantı hatası verir. Lütfen <strong className="text-white">"Yerel Ağ ({detectedLanIp}:5000)"</strong> seçeneğini veya aşağıdaki <strong className="text-emerald-300">"Bağımsız PowerShell Kodu"</strong>nu kullanınız.
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* TLS 1.2 Guarantee Info Badge */}
@@ -320,35 +345,64 @@ export default function ComputerCollectorModal({
                 </div>
               </div>
 
-              {/* Command Code Box (PowerShell Console) */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>{isServer ? 'PowerShell Konsolu Komutu (Mavi Ekran):' : 'Kullanıcı PC PowerShell Komutu:'}</span>
-                  </span>
-                  <span className="text-[11px] text-emerald-400 font-medium">Tek tıkla kopyalayın</span>
-                </label>
-                <div className={`bg-slate-950 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-inner border ${
-                  isServer ? 'border-indigo-500/50' : 'border-amber-500/50'
-                }`}>
-                  <code className={`text-xs font-mono select-all break-all ${isServer ? 'text-indigo-200' : 'text-amber-200'}`}>
-                    {shortCommand}
-                  </code>
-                  <CopyButton text={shortCommand} title="PowerShell Komutunu Kopyala" />
+              {/* SECTION A: NETWORK COMMAND */}
+              <div className="space-y-3">
+                <div className="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span>YÖNTEM 1: Tek Satırlık Ağ Komutu (Otomatik Kayıt)</span>
+                </div>
+
+                {/* Command Code Box (PowerShell Console) */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>{isServer ? 'PowerShell Konsolu Komutu (Mavi Ekran):' : 'Kullanıcı PC PowerShell Komutu:'}</span>
+                    </span>
+                    <span className="text-[11px] text-emerald-400 font-medium">Tek tıkla kopyalayın</span>
+                  </label>
+                  <div className={`bg-slate-950 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-inner border ${
+                    isServer ? 'border-indigo-500/50' : 'border-amber-500/50'
+                  }`}>
+                    <code className={`text-xs font-mono select-all break-all ${isServer ? 'text-indigo-200' : 'text-amber-200'}`}>
+                      {shortCommand}
+                    </code>
+                    <CopyButton text={shortCommand} title="PowerShell Komutunu Kopyala" />
+                  </div>
+                </div>
+
+                {/* CMD / Win+R Alternative Box */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center justify-between">
+                    <span>Alternatif: Komut İstemi (CMD) veya Win + R (Çalıştır) İçin:</span>
+                  </label>
+                  <div className="bg-slate-950/80 rounded-xl p-2.5 flex items-center justify-between gap-3 border border-slate-800">
+                    <code className="text-[11px] font-mono select-all break-all text-slate-300">
+                      {psCommand}
+                    </code>
+                    <CopyButton text={psCommand} title="CMD Komutunu Kopyala" />
+                  </div>
                 </div>
               </div>
 
-              {/* CMD / Win+R Alternative Box */}
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center justify-between">
-                  <span>Alternatif: Komut İstemi (CMD) veya Win + R (Çalıştır) İçin:</span>
-                </label>
-                <div className="bg-slate-950/80 rounded-xl p-2.5 flex items-center justify-between gap-3 border border-slate-800">
-                  <code className="text-[11px] font-mono select-all break-all text-slate-300">
-                    {psCommand}
+              {/* SECTION B: STANDALONE DIRECT POWERSHELL CODE (NO WEB / NO PORT NEEDED) */}
+              <div className="pt-2 border-t border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-cyan-300 flex items-center gap-1.5 uppercase tracking-wider">
+                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>YÖNTEM 2: Bağımsız Kod (Ağ & Web Gerektirmez - %100 Çözüm)</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 font-bold">
+                    ÖNERİLEN
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Hedef sunucu farklı bir alt ağdaysa veya web sunucusuna erişemiyorsa, aşağıdaki kodu PowerShell&apos;e yapıştırın. Sunucu özelliklerini (Xeon CPU, RAM, Disk, IP/MAC) 1 saniyede okur ve panonuza kopyalar. Ardından <strong>"3. Çevrimdışı Yapıştır"</strong> sekmesine yapıştırıp tek tıkla kaydedebilirsiniz.
+                </p>
+                <div className="bg-slate-950 rounded-xl p-3 flex items-center justify-between gap-3 border border-cyan-500/50">
+                  <code className="text-[11px] font-mono select-all break-all text-cyan-200 max-h-24 overflow-y-auto">
+                    {standaloneCommand}
                   </code>
-                  <CopyButton text={psCommand} title="CMD Komutunu Kopyala" />
+                  <CopyButton text={standaloneCommand} title="Bağımsız PowerShell Kodunu Kopyala" />
                 </div>
               </div>
 

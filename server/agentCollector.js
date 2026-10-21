@@ -41,7 +41,8 @@ $cpus = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue
 $cpuCount = ($cpus | Measure-Object).Count
 $firstCpu = ($cpus | Select-Object -First 1)
 $cpuModel = if ($firstCpu.Name) { $firstCpu.Name.Trim() } else { "Intel(R) Xeon(R)" }
-$cpuCores = if ($firstCpu.NumberOfCores) { $firstCpu.NumberOfCores * (if ($cpuCount -gt 0) { $cpuCount } else { 1 }) } else { 0 }
+$cpuMultiplier = if ($cpuCount -gt 0) { $cpuCount } else { 1 }
+$cpuCores = if ($firstCpu.NumberOfCores) { $firstCpu.NumberOfCores * $cpuMultiplier } else { 0 }
 $cpuInfo = if ($cpuCount -gt 1) { "$cpuCount x $cpuModel ($cpuCores Çekirdek)" } elseif ($cpuCores -gt 0) { "$cpuModel ($cpuCores Çekirdek)" } else { $cpuModel }
 
 Write-Host "[3/5] 🧠 RAM ve Depolama (Diskler / RAID) taranıyor..." -ForegroundColor Gray
