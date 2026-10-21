@@ -1737,8 +1737,18 @@ app.get('/api/agent/download/:customerId', (req, res) => {
     const host = req.get('host') || 'localhost:5000';
     const serverUrl = server_url || `${proto}://${host}`;
 
-    const safeName = (customer.name || 'Musteri').replace(/[^a-zA-Z0-9_\u00C0-\u017F]/g, '_');
+    const safeName = (customer.name || 'Musteri')
+      .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+      .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+      .replace(/ş/g, 's').replace(/Ş/g, 'S')
+      .replace(/ı/g, 'i').replace(/İ/g, 'I')
+      .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+      .replace(/ç/g, 'c').replace(/Ç/g, 'C')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
     const label = targetType === 'server' ? 'Sunucu' : (targetType === 'vm' ? 'VM' : 'PC');
+    const filename = `OMNIFlow_${safeName}_${label}_Toplayici.${format === 'ps1' ? 'ps1' : 'bat'}`;
 
     if (format === 'ps1') {
       const script = agentCollector.generateCollectorScript({
@@ -1748,7 +1758,7 @@ app.get('/api/agent/download/:customerId', (req, res) => {
         serverUrl,
         targetType
       });
-      res.setHeader('Content-Disposition', `attachment; filename="OMNIFlow_${safeName}_${label}_Toplayici.ps1"`);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       return res.send(script);
     } else {
@@ -1759,7 +1769,7 @@ app.get('/api/agent/download/:customerId', (req, res) => {
         serverUrl,
         targetType
       });
-      res.setHeader('Content-Disposition', `attachment; filename="OMNIFlow_${safeName}_${label}_Toplayici.bat"`);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
       res.setHeader('Content-Type', 'application/x-bat; charset=utf-8');
       return res.send(bat);
     }

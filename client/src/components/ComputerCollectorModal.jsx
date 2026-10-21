@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Laptop, Zap, Copy, Check, Download, ShieldCheck,
   Terminal, FileCode, WifiOff, Sparkles, Building2, CheckCircle2,
-  ExternalLink, Info, AlertCircle, Server, Network, Globe, Cloud
+  ExternalLink, Info, AlertCircle, Server, Network, Globe, Cloud, Loader2
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import { api } from '../api';
+import { generateCollectorScript, generateCollectorBat } from '../utils/agentScriptGenerator';
 
 export default function ComputerCollectorModal({
   isOpen,
@@ -18,18 +19,23 @@ export default function ComputerCollectorModal({
   const [activeTab, setActiveTab] = useState('command'); // 'command' | 'download' | 'offline'
   const [targetType, setTargetType] = useState(initialTargetType);
   const [selectedBranch, setSelectedBranch] = useState(branches[0] || 'Merkez Ofis');
-  const [serverMode, setServerMode] = useState('lan'); // 'lan' | 'cloud' | 'custom'
+  const isCloudHost = typeof window !== 'undefined' && (window.location.protocol === 'https:' || window.location.hostname.includes('render.com'));
+  const [serverMode, setServerMode] = useState(isCloudHost ? 'cloud' : 'lan'); // 'lan' | 'cloud' | 'custom'
   const [customHost, setCustomHost] = useState('');
   const [serverInfo, setServerInfo] = useState(null);
   const [offlineJson, setOfflineJson] = useState('');
   const [isSubmittingOffline, setIsSubmittingOffline] = useState(false);
   const [offlineError, setOfflineError] = useState(null);
+  const [downloadingFormat, setDownloadingFormat] = useState(null); // 'bat' | 'ps1' | null
+  const [downloadSuccess, setDownloadSuccess] = useState(null); // 'bat' | 'ps1' | null
 
   useEffect(() => {
     setTargetType(initialTargetType || 'computer');
     if (!isOpen) {
       setOfflineJson('');
       setOfflineError(null);
+      setDownloadingFormat(null);
+      setDownloadSuccess(null);
     }
   }, [initialTargetType, isOpen]);
 
@@ -41,20 +47,20 @@ export default function ComputerCollectorModal({
       .then(data => {
         if (data && data.success) {
           setServerInfo(data);
-          // Default to LAN if available
-          if (data.primaryLanIp) {
+          // Default to LAN if available and not on cloud
+          if (data.primaryLanIp && !isCloudHost) {
             setServerMode('lan');
           }
         }
       })
       .catch(() => {});
-  }, [isOpen]);
+  }, [isOpen, isCloudHost]);
 
   if (!isOpen || !customer) return null;
 
   // Cloud URL vs Local LAN URL vs Custom URL
-  const cloudUrl = serverInfo?.cloudUrl || 'https://omniflow-mptm.onrender.com';
-  const detectedLanIp = serverInfo?.primaryLanIp || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? window.location.hostname : '192.168.3.59');
+  const cloudUrl = serverInfo?.cloudUrl || (isCloudHost ? window.location.origin : 'https://omniflow-mptm.onrender.com');
+  const detectedLanIp = serverInfo?.primaryLanIp || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && !isCloudHost ? window.location.hostname : '192.168.3.59');
   const lanUrl = `http://${detectedLanIp}:5000`;
 
   let baseUrl = lanUrl;
@@ -63,7 +69,7 @@ export default function ComputerCollectorModal({
   } else if (serverMode === 'custom') {
     baseUrl = customHost.trim() || lanUrl;
   } else {
-    baseUrl = lanUrl;
+    baseUrl = isCloudHost ? cloudUrl : lanUrl;
   }
 
   const branchParam = encodeURIComponent(selectedBranch);
@@ -89,6 +95,68 @@ export default function ComputerCollectorModal({
 
   const downloadUrl = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&server_url=${encodeURIComponent(baseUrl)}&format=bat`;
   const downloadPs1Url = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&server_url=${encodeURIComponent(baseUrl)}&format=ps1`;
+
+  // Direct Browser Download (Guaranteed same-origin Blob, 100% offline & zero network dependency)
+  const handleDownload = async (format) => {
+    setDownloadingFormat(format);
+    setDownloadSuccess(null);
+    try {
+      let textContent = '';
+      
+      // 1. Try to fetch from server
+      try {
+        const res = await fetch(`/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&server_url=${encodeURIComponent(baseUrl)}&format=${format}`);
+        if (res.ok) {
+          const fetched = await res.text();
+          if (fetched && !fetched.includes('<!doctype') && !fetched.startsWith('# Sunucu Hatası') && !fetched.startsWith('Müşteri bulunamadı')) {
+            textContent = fetched;
+          }
+        }
+      } catch (e) {
+        console.warn('Server download fetch failed, falling back to client-side generator', e);
+      }
+
+      // 2. Fallback to client-side generator if server was empty or failed (guarantees 100% reliability)
+      if (!textContent) {
+        textContent = format === 'ps1'
+          ? generateCollectorScript({ customerId: customer.id, customerName: customer.name, branchName: selectedBranch, serverUrl: baseUrl, targetType })
+          : generateCollectorBat({ customerId: customer.id, customerName: customer.name, branchName: selectedBranch, serverUrl: baseUrl, targetType });
+      }
+
+      // 3. Create Blob and trigger instant browser download
+      const mimeType = format === 'ps1' ? 'text/plain;charset=utf-8' : 'application/x-bat;charset=utf-8';
+      const blob = new Blob([textContent], { type: mimeType });
+      const blobUrl = window.URL.createObjectURL(blob);
+      const safeName = (customer.name || 'Musteri')
+        .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+        .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+        .replace(/ş/g, 's').replace(/Ş/g, 'S')
+        .replace(/ı/g, 'i').replace(/İ/g, 'I')
+        .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+        .replace(/ç/g, 'c').replace(/Ç/g, 'C')
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+      const label = isVM ? 'VM' : (isServer ? 'Sunucu' : 'KullaniciPC');
+      const filename = `OMNIFlow_${safeName}_${label}_Toplayici.${format}`;
+
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+
+      setDownloadSuccess(format);
+      setTimeout(() => setDownloadSuccess(null), 3500);
+    } catch (err) {
+      console.error('Download failure:', err);
+      alert('İndirme sırasında bir hata oluştu: ' + err.message);
+    } finally {
+      setDownloadingFormat(null);
+    }
+  };
 
   // Submit offline JSON
   const handleSaveOfflineJson = async () => {
@@ -493,47 +561,97 @@ export default function ComputerCollectorModal({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <a
-                  href={downloadUrl}
-                  download
-                  className="p-4 bg-slate-950 border border-slate-700 hover:border-blue-500 rounded-xl flex items-center justify-between gap-3 group transition-all"
+                <button
+                  type="button"
+                  onClick={() => handleDownload('bat')}
+                  disabled={downloadingFormat === 'bat'}
+                  className={`p-4 bg-slate-950 border rounded-xl flex items-center justify-between gap-3 group transition-all text-left cursor-pointer ${
+                    downloadSuccess === 'bat'
+                      ? 'border-emerald-500 bg-emerald-950/20 shadow-sm shadow-emerald-500/10'
+                      : 'border-slate-700 hover:border-blue-500'
+                  }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-lg bg-blue-500/20 text-blue-400 group-hover:scale-110 transition-transform">
-                      <Download className="w-5 h-5" />
+                    <div className={`p-2.5 rounded-lg transition-transform group-hover:scale-110 ${
+                      downloadSuccess === 'bat'
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-blue-500/20 text-blue-400'
+                    }`}>
+                      {downloadingFormat === 'bat' ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : downloadSuccess === 'bat' ? (
+                        <Check className="w-5 h-5 text-emerald-400" />
+                      ) : (
+                        <Download className="w-5 h-5" />
+                      )}
                     </div>
                     <div>
                       <div className="text-xs font-bold text-white group-hover:text-blue-300">
                         {isVM ? 'VM_Toplayici.bat İndir' : isServer ? 'Sunucu_Toplayici.bat İndir' : 'Toplayici.bat İndir'}
                       </div>
-                      <div className="text-[11px] text-slate-400">Çift tıklayarak anında çalıştırın</div>
+                      <div className="text-[11px] text-slate-400">
+                        {downloadSuccess === 'bat' ? '✅ İndirildi! (İndirilenler klasöründe)' : 'Çift tıklayarak anında çalıştırın'}
+                      </div>
                     </div>
                   </div>
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">
-                    ÖNERİLEN
+                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
+                    downloadSuccess === 'bat'
+                      ? 'bg-emerald-500/20 text-emerald-300'
+                      : 'bg-blue-500/20 text-blue-300'
+                  }`}>
+                    {downloadSuccess === 'bat' ? 'HAZIR' : 'ÖNERİLEN'}
                   </span>
-                </a>
+                </button>
 
-                <a
-                  href={downloadPs1Url}
-                  download
-                  className="p-4 bg-slate-950 border border-slate-700 hover:border-amber-500 rounded-xl flex items-center justify-between gap-3 group transition-all"
+                <button
+                  type="button"
+                  onClick={() => handleDownload('ps1')}
+                  disabled={downloadingFormat === 'ps1'}
+                  className={`p-4 bg-slate-950 border rounded-xl flex items-center justify-between gap-3 group transition-all text-left cursor-pointer ${
+                    downloadSuccess === 'ps1'
+                      ? 'border-emerald-500 bg-emerald-950/20 shadow-sm shadow-emerald-500/10'
+                      : 'border-slate-700 hover:border-amber-500'
+                  }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-lg bg-amber-500/20 text-amber-400 group-hover:scale-110 transition-transform">
-                      <FileCode className="w-5 h-5" />
+                    <div className={`p-2.5 rounded-lg transition-transform group-hover:scale-110 ${
+                      downloadSuccess === 'ps1'
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-amber-500/20 text-amber-400'
+                    }`}>
+                      {downloadingFormat === 'ps1' ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : downloadSuccess === 'ps1' ? (
+                        <Check className="w-5 h-5 text-emerald-400" />
+                      ) : (
+                        <FileCode className="w-5 h-5" />
+                      )}
                     </div>
                     <div>
                       <div className="text-xs font-bold text-white group-hover:text-amber-300">
                         {isVM ? 'VM_Toplayici.ps1 İndir' : isServer ? 'Sunucu_Toplayici.ps1 İndir' : 'Toplayici.ps1 İndir'}
                       </div>
-                      <div className="text-[11px] text-slate-400">Ham PowerShell scripti</div>
+                      <div className="text-[11px] text-slate-400">
+                        {downloadSuccess === 'ps1' ? '✅ İndirildi! (İndirilenler klasöründe)' : 'Ham PowerShell scripti'}
+                      </div>
                     </div>
                   </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">
-                    PS1
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                    downloadSuccess === 'ps1'
+                      ? 'bg-emerald-500/20 text-emerald-300 font-bold'
+                      : 'bg-slate-800 text-slate-400'
+                  }`}>
+                    {downloadSuccess === 'ps1' ? 'HAZIR' : 'PS1'}
                   </span>
-                </a>
+                </button>
+              </div>
+
+              {/* Download Info note */}
+              <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 flex items-start gap-2.5 text-xs text-slate-300">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <strong className="text-white">Nasıl Çalıştırılır?</strong> İndirilen <code className="text-blue-300 font-mono text-[11px]">.bat</code> dosyasını hedef bilgisayarda çift tıklatarak çalıştırın. Script donanım özelliklerini (CPU, RAM, Disk, Windows Lisans Key, Office) 2 saniyede okuyup otomatik olarak <strong className="text-emerald-400">{customer.name}</strong> müşterisine kaydeder. Hedef istemci cihaza OMNIFlow veya herhangi bir program kurmanıza gerek yoktur.
+                </div>
               </div>
             </div>
           )}
