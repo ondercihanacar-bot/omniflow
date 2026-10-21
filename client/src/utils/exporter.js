@@ -10,7 +10,7 @@ export function exportCustomerToExcel(customer, branchFilter = 'ALL') {
   const lines = isAll ? (customer.internet_lines || []) : (customer.internet_lines || []).filter(l => (l.branch_name || 'Merkez Ofis') === branchFilter);
   const servers = isAll ? (customer.physical_servers || []) : (customer.physical_servers || []).filter(s => (s.branch_name || 'Merkez Ofis') === branchFilter);
   const serverIds = new Set(servers.map(s => s.id));
-  const vms = isAll ? (customer.virtual_machines || []) : (customer.virtual_machines || []).filter(v => v.physical_server_id && serverIds.has(v.physical_server_id));
+  const vms = isAll ? (customer.virtual_machines || []) : (customer.virtual_machines || []).filter(v => (v.branch_name || 'Merkez Ofis') === branchFilter || (v.physical_server_id && serverIds.has(v.physical_server_id)));
   const pcs = isAll ? (customer.user_computers || []) : (customer.user_computers || []).filter(p => (p.branch_name || 'Merkez Ofis') === branchFilter);
   const firewalls = isAll ? (customer.firewalls || []) : (customer.firewalls || []).filter(f => (f.branch_name || 'Merkez Ofis') === branchFilter);
   const antiviruses = isAll ? (customer.antivirus_licenses || []) : (customer.antivirus_licenses || []).filter(a => (a.branch_name || 'Merkez Ofis') === branchFilter);
@@ -155,6 +155,7 @@ export function exportCustomerToExcel(customer, branchFilter = 'ALL') {
 
   // 3. Sheet: Sanal Makineler
   const vmHeaders = [
+    'Şube / Lokasyon',
     'Sanal Makine Adı',
     'Rol / Görev',
     'Bağlı Olduğu Fiziki Server',
@@ -174,6 +175,7 @@ export function exportCustomerToExcel(customer, branchFilter = 'ALL') {
     'Notlar'
   ];
   const vmRows = vms.map(v => [
+    v.branch_name || 'Merkez Ofis',
     v.vm_name || '',
     v.role_description || '',
     v.physical_server_name || '',

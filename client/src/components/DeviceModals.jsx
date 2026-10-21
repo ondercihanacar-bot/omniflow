@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  X, Server, Cloud, Laptop, Shield, Database,
+  Building2, X, Server, Cloud, Laptop, Shield, Database,
   Sparkles, ClipboardPaste, Check, AlertCircle, ChevronDown, ChevronUp,
   Plus, Trash2, Search, Network
 } from 'lucide-react';
@@ -527,6 +527,174 @@ export function PresetCombobox({
   );
 }
 
+// ==================== REUSABLE BRANCH / LOCATION SELECTOR ====================
+export function BranchSelect({
+  label = 'Şube / Lokasyon',
+  value = 'Merkez Ofis',
+  onChange,
+  branches = [],
+  colorScheme = 'indigo',
+  required = false
+}) {
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [newBranchText, setNewBranchText] = useState('');
+  const inputRef = useRef(null);
+
+  // Normalize list of branches: Ensure 'Merkez Ofis' is first, then other customer branches
+  const branchList = Array.from(
+    new Set([
+      'Merkez Ofis',
+      ...(branches || []).filter(b => b && b.trim() !== 'Merkez Ofis' && b.trim() !== 'Tüm Şubeler')
+    ])
+  );
+
+  // If current value is neither empty nor in branchList, add it so it doesn't get lost
+  if (value && value.trim() && !branchList.includes(value.trim())) {
+    branchList.push(value.trim());
+  }
+
+  const focusColors = {
+    indigo: 'focus:border-indigo-500',
+    purple: 'focus:border-purple-500',
+    emerald: 'focus:border-emerald-500',
+    rose: 'focus:border-rose-500',
+    amber: 'focus:border-amber-500',
+    blue: 'focus:border-blue-500'
+  };
+
+  const ringColors = {
+    indigo: 'border-indigo-500/50',
+    purple: 'border-purple-500/50',
+    emerald: 'border-emerald-500/50',
+    rose: 'border-rose-500/50',
+    amber: 'border-amber-500/50',
+    blue: 'border-blue-500/50'
+  };
+
+  const btnBgColors = {
+    indigo: 'bg-indigo-600 hover:bg-indigo-500 text-white',
+    purple: 'bg-purple-600 hover:bg-purple-500 text-white',
+    emerald: 'bg-emerald-600 hover:bg-emerald-500 text-white',
+    rose: 'bg-rose-600 hover:bg-rose-500 text-white',
+    amber: 'bg-amber-600 hover:bg-amber-500 text-white',
+    blue: 'bg-blue-600 hover:bg-blue-500 text-white'
+  };
+
+  const activeFocus = focusColors[colorScheme] || focusColors.indigo;
+  const activeRing = ringColors[colorScheme] || ringColors.indigo;
+  const activeBtn = btnBgColors[colorScheme] || btnBgColors.indigo;
+
+  const handleSelectChange = (e) => {
+    const val = e.target.value;
+    if (val === '__ADD_NEW__') {
+      setIsAddingNew(true);
+      setNewBranchText('');
+      setTimeout(() => inputRef.current?.focus(), 50);
+    } else {
+      onChange(val);
+    }
+  };
+
+  const handleSaveNew = () => {
+    const trimmed = newBranchText.trim();
+    if (trimmed) {
+      onChange(trimmed);
+    }
+    setIsAddingNew(false);
+    setNewBranchText('');
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+          <Building2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+          <span>{label}</span>
+          {required && <span className="text-rose-400">*</span>}
+        </label>
+        {!isAddingNew ? (
+          <button
+            type="button"
+            onClick={() => {
+              setIsAddingNew(true);
+              setTimeout(() => inputRef.current?.focus(), 50);
+            }}
+            className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-0.5 cursor-pointer font-medium"
+            title="Yeni Şube / Lokasyon Ekle"
+          >
+            <Plus className="w-3 h-3" />
+            <span>Yeni Şube</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsAddingNew(false)}
+            className="text-[11px] text-slate-400 hover:text-slate-200 cursor-pointer"
+          >
+            Listeden Seç
+          </button>
+        )}
+      </div>
+
+      {!isAddingNew ? (
+        <div className="relative">
+          <select
+            value={value || 'Merkez Ofis'}
+            onChange={handleSelectChange}
+            className={`w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white appearance-none cursor-pointer ${activeFocus} focus:outline-none pr-9`}
+          >
+            {branchList.map((b) => (
+              <option key={b} value={b} className="bg-slate-900 text-white py-1">
+                {b === 'Merkez Ofis' ? '🏢 Merkez Ofis' : `🏬 ${b}`}
+              </option>
+            ))}
+            <option disabled className="bg-slate-800 text-slate-500">──────────</option>
+            <option value="__ADD_NEW__" className="bg-slate-900 text-blue-400 font-semibold">
+              ➕ Yeni Şube / Lokasyon Yaz...
+            </option>
+          </select>
+          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5 animate-fadeIn">
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Yeni şube adı (Örn: Gebze Depo)"
+            value={newBranchText}
+            onChange={(e) => setNewBranchText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSaveNew();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                setIsAddingNew(false);
+              }
+            }}
+            className={`flex-1 bg-slate-950 border ${activeRing} rounded-lg px-3 py-2 text-sm text-white ${activeFocus} focus:outline-none placeholder-slate-500 font-medium`}
+          />
+          <button
+            type="button"
+            onClick={handleSaveNew}
+            disabled={!newBranchText.trim()}
+            className={`px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${activeBtn}`}
+          >
+            Ekle
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsAddingNew(false)}
+            className="px-2.5 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 cursor-pointer"
+          >
+            İptal
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ==================== 1. PHYSICAL SERVER MODAL ====================
 export function ServerModal({ isOpen, onClose, onSave, server = null, customerId, branches = [] }) {
   const [formData, setFormData] = useState({
@@ -944,22 +1112,13 @@ export function ServerModal({ isOpen, onClose, onSave, server = null, customerId
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-800 pt-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Şube / Lokasyon</label>
-              <input
-                type="text"
-                list="branch-list-server"
-                placeholder="Örn: Merkez Ofis, Gebze Depo"
-                value={formData.branch_name || ''}
-                onChange={(e) => setFormData({ ...formData, branch_name: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
-              />
-              <datalist id="branch-list-server">
-                {branches.map((b, i) => (
-                  <option key={i} value={b} />
-                ))}
-              </datalist>
-            </div>
+            <BranchSelect
+              label="Şube / Lokasyon"
+              value={formData.branch_name || 'Merkez Ofis'}
+              onChange={(val) => setFormData({ ...formData, branch_name: val })}
+              branches={branches}
+              colorScheme="indigo"
+            />
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Kabin / Oda Konumu</label>
               <input
@@ -1004,11 +1163,12 @@ export function ServerModal({ isOpen, onClose, onSave, server = null, customerId
 }
 
 // ==================== 2. VIRTUAL MACHINE MODAL ====================
-export function VMModal({ isOpen, onClose, onSave, vm = null, customerId, physicalServers = [] }) {
+export function VMModal({ isOpen, onClose, onSave, vm = null, customerId, physicalServers = [], branches = [] }) {
   const [formData, setFormData] = useState({
     customer_id: customerId,
     physical_server_id: '',
     vm_name: '',
+    branch_name: (branches && branches[0]) || 'Merkez Ofis',
     hypervisor: 'VMware ESXi',
     role_description: '',
     vcpu: '',
@@ -1033,6 +1193,7 @@ export function VMModal({ isOpen, onClose, onSave, vm = null, customerId, physic
         local_admin_user: '',
         local_admin_password: '',
         ...vm,
+        branch_name: vm.branch_name || 'Merkez Ofis',
         customer_id: vm.customer_id || customerId,
         physical_server_id: vm.physical_server_id || ''
       });
@@ -1041,6 +1202,7 @@ export function VMModal({ isOpen, onClose, onSave, vm = null, customerId, physic
         customer_id: customerId,
         physical_server_id: physicalServers.length > 0 ? physicalServers[0].id : '',
         vm_name: '',
+        branch_name: (branches && branches[0]) || 'Merkez Ofis',
         hypervisor: 'VMware ESXi',
         role_description: '',
         vcpu: '4 vCPU',
@@ -1093,7 +1255,7 @@ export function VMModal({ isOpen, onClose, onSave, vm = null, customerId, physic
           }}
           className="p-6 space-y-4 max-h-[80vh] overflow-y-auto"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Sanal Makine Adı (VM Hostname) *</label>
               <input
@@ -1103,6 +1265,15 @@ export function VMModal({ isOpen, onClose, onSave, vm = null, customerId, physic
                 value={formData.vm_name}
                 onChange={(e) => setFormData({ ...formData, vm_name: e.target.value })}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-purple-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <BranchSelect
+                label="Şube / Lokasyon"
+                value={formData.branch_name || 'Merkez Ofis'}
+                onChange={(val) => setFormData({ ...formData, branch_name: val })}
+                branches={branches}
+                colorScheme="purple"
               />
             </div>
             <div>
@@ -1448,22 +1619,13 @@ export function ComputerModal({ isOpen, onClose, onSave, computer = null, custom
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-emerald-500 focus:outline-none"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Şube / Lokasyon</label>
-              <input
-                type="text"
-                list="branch-list-pc"
-                placeholder="Örn: Merkez Ofis, Gebze Depo"
-                value={formData.branch_name || ''}
-                onChange={(e) => setFormData({ ...formData, branch_name: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-              />
-              <datalist id="branch-list-pc">
-                {branches.map((b, i) => (
-                  <option key={i} value={b} />
-                ))}
-              </datalist>
-            </div>
+            <BranchSelect
+              label="Şube / Lokasyon"
+              value={formData.branch_name || 'Merkez Ofis'}
+              onChange={(val) => setFormData({ ...formData, branch_name: val })}
+              branches={branches}
+              colorScheme="emerald"
+            />
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Zimmetli Kullanıcı</label>
               <input
@@ -2054,22 +2216,13 @@ export function FirewallModal({ isOpen, onClose, onSave, firewall = null, custom
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-rose-500 focus:outline-none"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Şube / Lokasyon</label>
-              <input
-                type="text"
-                list="branch-list-fw"
-                placeholder="Örn: Merkez Ofis, Gebze Depo"
-                value={formData.branch_name || ''}
-                onChange={(e) => setFormData({ ...formData, branch_name: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-rose-500 focus:outline-none"
-              />
-              <datalist id="branch-list-fw">
-                {branches.map((b, i) => (
-                  <option key={i} value={b} />
-                ))}
-              </datalist>
-            </div>
+            <BranchSelect
+              label="Şube / Lokasyon"
+              value={formData.branch_name || 'Merkez Ofis'}
+              onChange={(val) => setFormData({ ...formData, branch_name: val })}
+              branches={branches}
+              colorScheme="rose"
+            />
             <div>
               <PresetCombobox
                 label="Marka"
@@ -2303,22 +2456,13 @@ export function BackupModal({ isOpen, onClose, onSave, backup = null, customerId
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-500 focus:outline-none"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Şube / Lokasyon</label>
-              <input
-                type="text"
-                list="branch-list-bu"
-                placeholder="Örn: Merkez Ofis, Gebze Depo"
-                value={formData.branch_name || ''}
-                onChange={(e) => setFormData({ ...formData, branch_name: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-500 focus:outline-none"
-              />
-              <datalist id="branch-list-bu">
-                {branches.map((b, i) => (
-                  <option key={i} value={b} />
-                ))}
-              </datalist>
-            </div>
+            <BranchSelect
+              label="Şube / Lokasyon"
+              value={formData.branch_name || 'Merkez Ofis'}
+              onChange={(val) => setFormData({ ...formData, branch_name: val })}
+              branches={branches}
+              colorScheme="amber"
+            />
             <div>
               <PresetCombobox
                 label="Marka"

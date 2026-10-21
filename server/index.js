@@ -1397,7 +1397,8 @@ app.post('/api/virtual-machines', (req, res) => {
     const {
       customer_id, physical_server_id, vm_name, hypervisor, role_description,
       vcpu, ram, disk, ip_address, mac_address, os_version, os_license_key,
-      office_version, office_license_key, local_admin_user, local_admin_password, status, notes
+      office_version, office_license_key, local_admin_user, local_admin_password,
+      branch_name, status, notes
     } = req.body;
 
     if (!customer_id || !vm_name) {
@@ -1408,8 +1409,9 @@ app.post('/api/virtual-machines', (req, res) => {
       INSERT INTO virtual_machines (
         customer_id, physical_server_id, vm_name, hypervisor, role_description,
         vcpu, ram, disk, ip_address, mac_address, os_version, os_license_key,
-        office_version, office_license_key, local_admin_user, local_admin_password, status, notes, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        office_version, office_license_key, local_admin_user, local_admin_password,
+        branch_name, status, notes, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
 
     const result = stmt.run(
@@ -1417,7 +1419,7 @@ app.post('/api/virtual-machines', (req, res) => {
       vm_name.trim(), hypervisor || '', role_description || '', vcpu || '', ram || '', disk || '',
       ip_address || '', mac_address || '', os_version || '', os_license_key || '',
       office_version || '', office_license_key || '', local_admin_user || '', local_admin_password || '',
-      status || 'Aktif', notes || ''
+      branch_name || 'Merkez Ofis', status || 'Aktif', notes || ''
     );
 
     const created = db.prepare('SELECT * FROM virtual_machines WHERE id = ?').get(result.lastInsertRowid);
@@ -1432,7 +1434,8 @@ app.put('/api/virtual-machines/:id', (req, res) => {
     const {
       physical_server_id, vm_name, hypervisor, role_description,
       vcpu, ram, disk, ip_address, mac_address, os_version, os_license_key,
-      office_version, office_license_key, local_admin_user, local_admin_password, status, notes
+      office_version, office_license_key, local_admin_user, local_admin_password,
+      branch_name, status, notes
     } = req.body;
 
     const stmt = db.prepare(`
@@ -1440,6 +1443,7 @@ app.put('/api/virtual-machines/:id', (req, res) => {
         physical_server_id = ?, vm_name = ?, hypervisor = ?, role_description = ?,
         vcpu = ?, ram = ?, disk = ?, ip_address = ?, mac_address = ?, os_version = ?, os_license_key = ?,
         office_version = ?, office_license_key = ?, local_admin_user = ?, local_admin_password = ?,
+        branch_name = COALESCE(NULLIF(?, ''), branch_name),
         status = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `);
@@ -1450,6 +1454,7 @@ app.put('/api/virtual-machines/:id', (req, res) => {
       vcpu || '', ram || '', disk || '', ip_address || '', mac_address || '',
       os_version || '', os_license_key || '', office_version || '', office_license_key || '',
       local_admin_user || '', local_admin_password || '',
+      branch_name || 'Merkez Ofis',
       status || 'Aktif', notes || '', req.params.id
     );
 

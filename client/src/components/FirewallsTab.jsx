@@ -1,14 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Shield, Plus, Search, Edit2, Trash2, Globe, ExternalLink, Key, Lock, CheckCircle2, Building2, ShieldAlert } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
 import { getDaysRemaining, getLicenseStatus } from '../utils/licenseAlerts';
 import { openWebPanel } from '../utils/launcher';
 
-export default function FirewallsTab({ firewalls = [], onAdd, onEdit, onDelete }) {
+export default function FirewallsTab({ firewalls = [], branches = [], onAdd, onEdit, onDelete }) {
   const [search, setSearch] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('ALL');
+
+  const distinctBranches = useMemo(() => {
+    const set = new Set(['Merkez Ofis']);
+    branches.forEach(b => { if (b) set.add(b); });
+    firewalls.forEach(f => { if (f.branch_name) set.add(f.branch_name); });
+    return Array.from(set);
+  }, [branches, firewalls]);
 
   const filtered = firewalls.filter(f => {
+    const branchMatch = selectedBranch === 'ALL' || (f.branch_name || 'Merkez Ofis') === selectedBranch;
+    if (!branchMatch) return false;
+
     const q = search.toLowerCase();
     return (
       (f.device_name || '').toLowerCase().includes(q) ||
@@ -27,15 +38,37 @@ export default function FirewallsTab({ firewalls = [], onAdd, onEdit, onDelete }
     <div className="space-y-4">
       {/* Top Filter and Action Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Cihaz adı, marka, model, IP veya kullanıcı adı ile filtrele..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-700/80 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-rose-500"
-          />
+        <div className="flex flex-1 items-center gap-3 flex-wrap sm:flex-nowrap">
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Cihaz adı, marka, model, IP veya kullanıcı adı ile filtrele..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-700/80 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-rose-500"
+            />
+          </div>
+
+          {/* Branch Filter */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Building2 className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              className="bg-slate-950 border border-slate-700/80 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-rose-500 cursor-pointer"
+            >
+              <option value="ALL">Tüm Şubeler & Lokasyonlar ({firewalls.length})</option>
+              {distinctBranches.map(b => {
+                const count = firewalls.filter(f => (f.branch_name || 'Merkez Ofis') === b).length;
+                return (
+                  <option key={b} value={b}>
+                    {b === 'Merkez Ofis' ? '🏢 Merkez Ofis' : `🏬 ${b}`} ({count})
+                  </option>
+                );
+              })}
+            </select>
+          </div>
         </div>
 
         <button

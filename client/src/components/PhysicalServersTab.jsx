@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Server, Plus, Search, Edit2, Trash2, Cpu, HardDrive, Network,
   Key, Layers, CheckCircle2, AlertCircle, Building2, Table, LayoutGrid, Shield, Globe, Zap
@@ -21,10 +21,18 @@ export default function PhysicalServersTab({
   onReloadCustomer
 }) {
   const [search, setSearch] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('ALL');
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem('server_view_mode') || 'table';
   });
   const [isCollectorModalOpen, setIsCollectorModalOpen] = useState(false);
+
+  const distinctBranches = useMemo(() => {
+    const set = new Set(['Merkez Ofis']);
+    branches.forEach(b => { if (b) set.add(b); });
+    servers.forEach(s => { if (s.branch_name) set.add(s.branch_name); });
+    return Array.from(set);
+  }, [branches, servers]);
 
   const handleSetViewMode = (mode) => {
     setViewMode(mode);
@@ -39,9 +47,13 @@ export default function PhysicalServersTab({
   ].filter(p => p.ip || p.mac);
 
   const filtered = servers.filter(s => {
+    const branchMatch = selectedBranch === 'ALL' || (s.branch_name || 'Merkez Ofis') === selectedBranch;
+    if (!branchMatch) return false;
+
     const q = search.toLowerCase();
     return (
       (s.server_name || '').toLowerCase().includes(q) ||
+      (s.branch_name || '').toLowerCase().includes(q) ||
       (s.brand || '').toLowerCase().includes(q) ||
       (s.model || '').toLowerCase().includes(q) ||
       (s.ip_address || '').toLowerCase().includes(q) ||
@@ -61,8 +73,8 @@ export default function PhysicalServersTab({
     <div className="space-y-4">
       {/* Top Filter and Action Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/70 p-3.5 sm:p-4 rounded-xl border border-slate-800">
-        <div className="flex flex-1 items-center gap-3">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-1 items-center gap-3 flex-wrap sm:flex-nowrap">
+          <div className="relative flex-1 min-w-[200px] max-w-md">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -71,6 +83,26 @@ export default function PhysicalServersTab({
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-slate-950 border border-slate-700/80 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
             />
+          </div>
+
+          {/* Branch / Location Filter */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Building2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              className="bg-slate-950 border border-slate-700/80 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+            >
+              <option value="ALL">Tüm Şubeler & Lokasyonlar ({servers.length})</option>
+              {distinctBranches.map(b => {
+                const count = servers.filter(s => (s.branch_name || 'Merkez Ofis') === b).length;
+                return (
+                  <option key={b} value={b}>
+                    {b === 'Merkez Ofis' ? '🏢 Merkez Ofis' : `🏬 ${b}`} ({count})
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
           {/* View Mode Switcher */}

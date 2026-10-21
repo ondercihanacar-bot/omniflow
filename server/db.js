@@ -78,6 +78,7 @@ db.exec(`
     office_license_key TEXT,
     local_admin_user TEXT,
     local_admin_password TEXT,
+    branch_name TEXT DEFAULT 'Merkez Ofis',
     status TEXT DEFAULT 'Aktif',
     notes TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -337,6 +338,7 @@ function runMigrations() {
   tryAddCol('physical_servers', "branch_name TEXT DEFAULT 'Merkez Ofis'");
   tryAddCol('firewalls', "branch_name TEXT DEFAULT 'Merkez Ofis'");
   tryAddCol('backup_units', "branch_name TEXT DEFAULT 'Merkez Ofis'");
+  tryAddCol('virtual_machines', "branch_name TEXT DEFAULT 'Merkez Ofis'");
   tryAddCol('users', 'permissions TEXT');
 
   // Local Admin columns migration

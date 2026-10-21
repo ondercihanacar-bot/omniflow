@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Cloud, Plus, Search, Edit2, Trash2, Key, Cpu, HardDrive,
-  CheckCircle2, Server, Table, LayoutGrid, Network, Info, Shield, Monitor, Zap
+  CheckCircle2, Server, Table, LayoutGrid, Network, Info, Shield, Monitor, Zap, Building2
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
@@ -21,10 +21,18 @@ export default function VirtualMachinesTab({
   onReloadCustomer
 }) {
   const [search, setSearch] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('ALL');
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem('vm_view_mode') || 'table';
   });
   const [isCollectorModalOpen, setIsCollectorModalOpen] = useState(false);
+
+  const distinctBranches = useMemo(() => {
+    const set = new Set(['Merkez Ofis']);
+    branches.forEach(b => { if (b) set.add(b); });
+    vms.forEach(v => { if (v.branch_name) set.add(v.branch_name); });
+    return Array.from(set);
+  }, [branches, vms]);
 
   const handleSetViewMode = (mode) => {
     setViewMode(mode);
@@ -32,9 +40,13 @@ export default function VirtualMachinesTab({
   };
 
   const filtered = vms.filter(v => {
+    const branchMatch = selectedBranch === 'ALL' || (v.branch_name || 'Merkez Ofis') === selectedBranch;
+    if (!branchMatch) return false;
+
     const q = search.toLowerCase();
     return (
       (v.vm_name || '').toLowerCase().includes(q) ||
+      (v.branch_name || '').toLowerCase().includes(q) ||
       (v.role_description || '').toLowerCase().includes(q) ||
       (v.ip_address || '').toLowerCase().includes(q) ||
       (v.mac_address || '').toLowerCase().includes(q) ||
@@ -51,8 +63,8 @@ export default function VirtualMachinesTab({
     <div className="space-y-4">
       {/* Top Filter and Action Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/70 p-3.5 sm:p-4 rounded-xl border border-slate-800">
-        <div className="flex flex-1 items-center gap-3">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-1 items-center gap-3 flex-wrap sm:flex-nowrap">
+          <div className="relative flex-1 min-w-[200px] max-w-md">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -61,6 +73,26 @@ export default function VirtualMachinesTab({
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-slate-950 border border-slate-700/80 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-purple-500"
             />
+          </div>
+
+          {/* Branch / Location Filter */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Building2 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              className="bg-slate-950 border border-slate-700/80 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
+            >
+              <option value="ALL">Tüm Şubeler & Lokasyonlar ({vms.length})</option>
+              {distinctBranches.map(b => {
+                const count = vms.filter(v => (v.branch_name || 'Merkez Ofis') === b).length;
+                return (
+                  <option key={b} value={b}>
+                    {b === 'Merkez Ofis' ? '🏢 Merkez Ofis' : `🏬 ${b}`} ({count})
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
           {/* View Mode Switcher: Table vs Cards */}
@@ -185,11 +217,17 @@ export default function VirtualMachinesTab({
                   <span className="text-slate-400 text-[11px]">Sunucu:</span>
                   <span className="font-semibold text-white truncate">{v.physical_server_name || 'Bağımsız / Bulut'}</span>
                 </div>
-                {v.hypervisor && (
-                  <span className="text-[11px] font-mono text-slate-400 shrink-0">
-                    {v.hypervisor}
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-950/60 text-purple-300 border border-purple-800/60 flex items-center gap-1" title="Şube / Lokasyon">
+                    <Building2 className="w-2.5 h-2.5 text-purple-400" />
+                    {v.branch_name || 'Merkez Ofis'}
                   </span>
-                )}
+                  {v.hypervisor && (
+                    <span className="text-[11px] font-mono text-slate-400 shrink-0">
+                      {v.hypervisor}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Hardware Specs & Network Grid */}

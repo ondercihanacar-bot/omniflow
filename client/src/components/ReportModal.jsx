@@ -54,7 +54,7 @@ export default function ReportModal({ isOpen, onClose, customer }) {
 
   const vms = isAll
     ? (customer.virtual_machines || [])
-    : (customer.virtual_machines || []).filter(v => v && v.physical_server_id && serverIds.has(v.physical_server_id));
+    : (customer.virtual_machines || []).filter(v => v && ((v.branch_name || 'Merkez Ofis') === selectedBranch || (v.physical_server_id && serverIds.has(v.physical_server_id))));
 
   const branchPCs = isAll
     ? (customer.user_computers || [])
@@ -790,7 +790,10 @@ export default function ReportModal({ isOpen, onClose, customer }) {
                   ) : (
                     vms.map(v => (
                       <tr key={v.id} className="hover:bg-slate-50">
-                        <td className="p-2 font-mono font-bold text-slate-900 border-r border-slate-200">{v.vm_name}</td>
+                        <td className="p-2 font-mono font-bold text-slate-900 border-r border-slate-200">
+                          <div>{v.vm_name}</div>
+                          <div className="text-[10px] text-slate-500 font-sans font-normal">🏢 {v.branch_name || 'Merkez Ofis'}</div>
+                        </td>
                         <td className="p-2 border-r border-slate-200">{v.role_description}</td>
                         <td className="p-2 font-mono text-[11px] border-r border-slate-200">{v.vcpu} / {v.ram} / {v.disk}</td>
                         <td className="p-2 font-mono border-r border-slate-200">{v.ip_address} {v.mac_address && `(${v.mac_address})`}</td>

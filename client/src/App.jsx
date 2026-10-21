@@ -258,6 +258,7 @@ export default function App() {
         ...(customerData?.internet_lines || []).map(l => l.branch_name),
         ...(customerData?.user_computers || []).map(c => c.branch_name),
         ...(customerData?.physical_servers || []).map(s => s.branch_name),
+        ...(customerData?.virtual_machines || []).map(v => v.branch_name),
         ...(customerData?.firewalls || []).map(f => f.branch_name),
         ...(customerData?.backup_units || []).map(b => b.branch_name),
         ...(customerData?.wifi_controllers || []).map(w => w.branch_name),
@@ -1931,6 +1932,7 @@ export default function App() {
         vm={editingVM}
         customerId={selectedCustomerId}
         physicalServers={customerData?.physical_servers || []}
+        branches={customerBranches}
         onClose={() => {
           setIsVMModalOpen(false);
           setEditingVM(null);

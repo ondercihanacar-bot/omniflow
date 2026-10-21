@@ -879,6 +879,7 @@ function handleRegisterServer(db, payload) {
 function handleRegisterVM(db, payload) {
   const {
     customer_id,
+    branch_name = 'Merkez Ofis',
     vm_name,
     hypervisor = 'Microsoft Hyper-V',
     role_description = '',
@@ -925,6 +926,7 @@ function handleRegisterVM(db, payload) {
         mac_address = COALESCE(NULLIF(?, ''), mac_address),
         os_version = COALESCE(NULLIF(?, ''), os_version),
         os_license_key = COALESCE(NULLIF(?, ''), os_license_key),
+        branch_name = COALESCE(NULLIF(?, ''), branch_name),
         notes = COALESCE(NULLIF(?, ''), notes),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
@@ -941,6 +943,7 @@ function handleRegisterVM(db, payload) {
       mac_address.trim().toUpperCase(),
       os_version.trim(),
       os_license_key.trim(),
+      branch_name || 'Merkez Ofis',
       notes || existing.notes,
       existing.id
     );
@@ -967,8 +970,8 @@ function handleRegisterVM(db, payload) {
         customer_id, physical_server_id, vm_name, hypervisor, role_description,
         vcpu, ram, disk, ip_address, mac_address, os_version, os_license_key,
         office_version, office_license_key, local_admin_user, local_admin_password,
-        status, notes, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        branch_name, status, notes, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
 
     const result = insertStmt.run(
@@ -988,6 +991,7 @@ function handleRegisterVM(db, payload) {
       office_license_key || '',
       local_admin_user || '',
       local_admin_password || '',
+      branch_name || 'Merkez Ofis',
       status || 'Aktif',
       notes || `PowerShell Ajanı ile otomatik kaydedildi (${new Date().toLocaleString('tr-TR')})`
     );
