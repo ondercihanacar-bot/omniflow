@@ -16,7 +16,7 @@ export default function BrandLogo({
     md: 'w-9 h-9 text-base',
     lg: 'w-16 h-16 text-2xl',
     xl: 'w-24 h-24 text-3xl',
-    banner: 'w-auto max-w-[220px] h-[64px] sm:h-[68px] lg:h-[72px] aspect-[2.7/1]',
+    banner: 'w-44 sm:w-48 md:w-full h-full max-w-[270px]',
     auth: 'w-full h-28 sm:h-32'
   };
 

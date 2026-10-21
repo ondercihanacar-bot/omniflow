@@ -99,13 +99,13 @@ export default function Navbar({
                 onGoHome();
               }
             }}
-            className="flex-1 h-full flex items-center justify-center overflow-hidden cursor-pointer group select-none py-1.5"
+            className="flex-1 h-full flex items-center justify-center p-1.5 sm:p-2 overflow-hidden cursor-pointer group select-none"
             title={t('navbar.goHome') || 'OmniFlow - Ana Sayfaya Git'}
           >
             <BrandLogo
               size="banner"
               onClick={onGoHome}
-              className="group-hover:scale-[1.02] group-hover:border-blue-500/60 transition-all duration-200"
+              className="w-full h-full group-hover:scale-[1.01] group-hover:border-blue-500/60 transition-all duration-200"
             />
           </div>
         </div>
