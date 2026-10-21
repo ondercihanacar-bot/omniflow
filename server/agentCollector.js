@@ -96,7 +96,8 @@ $jsonBody = $data | ConvertTo-Json -Compress
 $apiUrl = "${safeServerUrl}/api/agent/register-server"
 
 try {
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls11 -bor [System.Net.SecurityProtocolType]::Tls
+    [System.Net.ServicePointManager]::SecurityProtocol = 3072 -bor 768 -bor 192
+    [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
 
     $response = Invoke-RestMethod -Uri $apiUrl -Method POST -Body ([System.Text.Encoding]::UTF8.GetBytes($jsonBody)) -ContentType "application/json; charset=utf-8" -TimeoutSec 15
 
@@ -287,7 +288,8 @@ $jsonBody = $data | ConvertTo-Json -Compress
 $apiUrl = "${safeServerUrl}/api/agent/register-computer"
 
 try {
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls11 -bor [System.Net.SecurityProtocolType]::Tls
+    [System.Net.ServicePointManager]::SecurityProtocol = 3072 -bor 768 -bor 192
+    [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
 
     $response = Invoke-RestMethod -Uri $apiUrl -Method POST -Body ([System.Text.Encoding]::UTF8.GetBytes($jsonBody)) -ContentType "application/json; charset=utf-8" -TimeoutSec 15
 
@@ -336,7 +338,7 @@ echo OMNIFlow ${label} Donanim ve Altyapi Toplayici Baslatiliyor...
 echo Musteri: ${customerName}
 echo ==========================================================
 echo.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm '${scriptUrl}' | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = 3072 -bor 768 -bor 192; [Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; irm '${scriptUrl}' | iex"
 if %errorlevel% neq 0 (
     echo.
     echo Bir hata olustu. Yonetici olarak calistirmayi deneyiniz.

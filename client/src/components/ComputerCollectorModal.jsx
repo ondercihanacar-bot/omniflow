@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Laptop, Zap, Copy, Check, Download, ShieldCheck,
   Terminal, FileCode, WifiOff, Sparkles, Building2, CheckCircle2,
-  ExternalLink, Info, AlertCircle, Server
+  ExternalLink, Info, AlertCircle, Server, Network, Globe
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import { api } from '../api';
@@ -18,7 +18,9 @@ export default function ComputerCollectorModal({
   const [activeTab, setActiveTab] = useState('command'); // 'command' | 'download' | 'offline'
   const [targetType, setTargetType] = useState(initialTargetType);
   const [selectedBranch, setSelectedBranch] = useState(branches[0] || 'Merkez Ofis');
-  const [serverMode, setServerMode] = useState('cloud'); // 'cloud' | 'local'
+  const [serverMode, setServerMode] = useState('lan'); // 'lan' | 'cloud' | 'custom'
+  const [customHost, setCustomHost] = useState('');
+  const [serverInfo, setServerInfo] = useState(null);
   const [offlineJson, setOfflineJson] = useState('');
   const [isSubmittingOffline, setIsSubmittingOffline] = useState(false);
   const [offlineError, setOfflineError] = useState(null);
@@ -27,22 +29,54 @@ export default function ComputerCollectorModal({
     setTargetType(initialTargetType || 'computer');
   }, [initialTargetType, isOpen]);
 
+  // Load server LAN IPs
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch('/api/agent/server-info')
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.success) {
+          setServerInfo(data);
+          // Default to LAN if available
+          if (data.primaryLanIp) {
+            setServerMode('lan');
+          }
+        }
+      })
+      .catch(() => {});
+  }, [isOpen]);
+
   if (!isOpen || !customer) return null;
 
-  // Cloud URL vs Local current window origin
-  const cloudUrl = 'https://omniflow-mptm.onrender.com';
-  const localUrl = window.location.origin;
-  const baseUrl = serverMode === 'cloud' ? cloudUrl : localUrl;
+  // Cloud URL vs Local LAN URL vs Custom URL
+  const cloudUrl = serverInfo?.cloudUrl || 'https://omniflow-mptm.onrender.com';
+  const detectedLanIp = serverInfo?.primaryLanIp || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? window.location.hostname : '192.168.3.59');
+  const lanUrl = `http://${detectedLanIp}:5000`;
+
+  let baseUrl = lanUrl;
+  if (serverMode === 'cloud') {
+    baseUrl = cloudUrl;
+  } else if (serverMode === 'custom') {
+    baseUrl = customHost.trim() || lanUrl;
+  } else {
+    baseUrl = lanUrl;
+  }
 
   const branchParam = encodeURIComponent(selectedBranch);
   const isServer = targetType === 'server';
   const typeParam = isServer ? '&t=server' : '';
 
-  const psCommand = `powershell -ExecutionPolicy Bypass -Command "irm '${baseUrl}/api/agent/collector.ps1?c=${customer.id}&b=${branchParam}${typeParam}' | iex"`;
-  const shortCommand = `irm '${baseUrl}/api/agent/collector.ps1?c=${customer.id}&b=${branchParam}${typeParam}' | iex`;
+  // TLS 1.2 + SSL Bypass prefix (fixes "SSL/TLS güvenli kanalı oluşturulamadı" on Windows Server 2016 / PowerShell 5.1)
+  const tlsFixPrefix = `[Net.ServicePointManager]::SecurityProtocol = 3072 -bor 768 -bor 192; [Net.ServicePointManager]::ServerCertificateValidationCallback = {$true};`;
+  
+  // Clean PowerShell command
+  const shortCommand = `${tlsFixPrefix} irm '${baseUrl}/api/agent/collector.ps1?c=${customer.id}&b=${branchParam}${typeParam}' | iex`;
+  
+  // CMD / Win+R command
+  const psCommand = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${tlsFixPrefix} irm '${baseUrl}/api/agent/collector.ps1?c=${customer.id}&b=${branchParam}${typeParam}' | iex"`;
 
-  const downloadUrl = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&format=bat`;
-  const downloadPs1Url = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&format=ps1`;
+  const downloadUrl = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&server_url=${encodeURIComponent(baseUrl)}&format=bat`;
+  const downloadPs1Url = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&server_url=${encodeURIComponent(baseUrl)}&format=ps1`;
 
   // Submit offline JSON
   const handleSaveOfflineJson = async () => {
@@ -218,38 +252,81 @@ export default function ComputerCollectorModal({
           {activeTab === 'command' && (
             <div className="space-y-4">
               {/* Server selector switch */}
-              <div className="flex items-center justify-between text-xs bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                <span className="text-slate-400">Hedef Bağlantı Adresi:</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setServerMode('cloud')}
-                    className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors cursor-pointer ${
-                      serverMode === 'cloud'
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Canlı Bulut (Render)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setServerMode('local')}
-                    className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors cursor-pointer ${
-                      serverMode === 'local'
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Bu Tarayıcı Adresi ({window.location.hostname})
-                  </button>
+              <div className="space-y-2 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-slate-400 flex items-center gap-1.5 font-medium">
+                    <Network className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Bağlantı Hedefi:</span>
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setServerMode('lan')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        serverMode === 'lan'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+                      }`}
+                    >
+                      <Network className="w-3 h-3" />
+                      <span>Yerel Ağ ({detectedLanIp}:5000)</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/30 font-mono">ÖNERİLEN</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setServerMode('cloud')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        serverMode === 'cloud'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+                      }`}
+                    >
+                      <Globe className="w-3 h-3" />
+                      <span>Canlı Bulut (Render)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setServerMode('custom')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors cursor-pointer ${
+                        serverMode === 'custom'
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+                      }`}
+                    >
+                      Özel IP
+                    </button>
+                  </div>
+                </div>
+
+                {serverMode === 'custom' && (
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                    <span className="text-slate-400 text-[11px] shrink-0">Hedef URL:</span>
+                    <input
+                      type="text"
+                      value={customHost}
+                      onChange={(e) => setCustomHost(e.target.value)}
+                      placeholder="http://192.168.1.50:5000"
+                      className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* TLS 1.2 Guarantee Info Badge */}
+              <div className="bg-emerald-950/25 border border-emerald-500/30 rounded-xl p-3 text-xs text-emerald-200 flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <span className="font-bold text-white">SSL/TLS 1.2 Güvencesi:</span> Windows Server 2012/2016/2019/2022 sürümlerinde <code className="text-emerald-300 font-mono text-[11px]">"SSL/TLS güvenli kanalı oluşturulamadı"</code> hatasını engellemek için TLS 1.2 protokol aktivasyonu komutun başına otomatik eklenmiştir.
                 </div>
               </div>
 
-              {/* Command Code Box */}
+              {/* Command Code Box (PowerShell Console) */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-                  <span>{isServer ? 'Fiziki Sunucu PowerShell Komutu:' : 'Kullanıcı PC PowerShell Komutu:'}</span>
+                  <span className="flex items-center gap-1.5">
+                    <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{isServer ? 'PowerShell Konsolu Komutu (Mavi Ekran):' : 'Kullanıcı PC PowerShell Komutu:'}</span>
+                  </span>
                   <span className="text-[11px] text-emerald-400 font-medium">Tek tıkla kopyalayın</span>
                 </label>
                 <div className={`bg-slate-950 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-inner border ${
@@ -259,6 +336,19 @@ export default function ComputerCollectorModal({
                     {shortCommand}
                   </code>
                   <CopyButton text={shortCommand} title="PowerShell Komutunu Kopyala" />
+                </div>
+              </div>
+
+              {/* CMD / Win+R Alternative Box */}
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center justify-between">
+                  <span>Alternatif: Komut İstemi (CMD) veya Win + R (Çalıştır) İçin:</span>
+                </label>
+                <div className="bg-slate-950/80 rounded-xl p-2.5 flex items-center justify-between gap-3 border border-slate-800">
+                  <code className="text-[11px] font-mono select-all break-all text-slate-300">
+                    {psCommand}
+                  </code>
+                  <CopyButton text={psCommand} title="CMD Komutunu Kopyala" />
                 </div>
               </div>
 

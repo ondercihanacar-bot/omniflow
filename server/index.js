@@ -1450,10 +1450,39 @@ app.delete('/api/virtual-machines/:id', (req, res) => {
 // POWERSHELL HARDWARE & LICENSE COLLECTOR AGENT APIS
 // ==========================================
 
+// Get host LAN IPs and network addresses for agent collector
+app.get('/api/agent/server-info', (req, res) => {
+  try {
+    const os = require('os');
+    const nets = os.networkInterfaces();
+    const ips = [];
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name]) {
+        if (net.family === 'IPv4' && !net.internal) {
+          ips.push({ name, address: net.address });
+        }
+      }
+    }
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.get('host') || 'localhost:5000';
+    res.json({
+      success: true,
+      lanIps: ips,
+      primaryLanIp: ips.find(i => !i.name.toLowerCase().includes('vpn') && !i.name.toLowerCase().includes('virtual') && !i.name.toLowerCase().includes('vEthernet'))?.address || ips[0]?.address || '127.0.0.1',
+      port: PORT,
+      requestHost: host,
+      requestOrigin: `${proto}://${host}`,
+      cloudUrl: 'https://omniflow-mptm.onrender.com'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Serve dynamic PowerShell script locked to customer
 app.get('/api/agent/collector.ps1', (req, res) => {
   try {
-    const { c: customerId, b: branchName, t: targetType = 'computer' } = req.query;
+    const { c: customerId, b: branchName, t: targetType = 'computer', server_url } = req.query;
     if (!customerId) {
       return res.status(400).send('# Hata: Müşteri parametresi (c) zorunludur.');
     }
@@ -1464,7 +1493,7 @@ app.get('/api/agent/collector.ps1', (req, res) => {
 
     const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
     const host = req.get('host') || 'localhost:5000';
-    const serverUrl = `${proto}://${host}`;
+    const serverUrl = server_url || `${proto}://${host}`;
 
     const script = agentCollector.generateCollectorScript({
       customerId: customer.id,
@@ -1488,6 +1517,7 @@ app.get('/api/agent/download/:customerId', (req, res) => {
     const branchName = req.query.b || 'Merkez Ofis';
     const format = req.query.format || 'bat';
     const targetType = req.query.t || 'computer';
+    const server_url = req.query.server_url;
 
     const customer = db.prepare('SELECT id, name FROM customers WHERE id = ?').get(customerId);
     if (!customer) {
@@ -1496,7 +1526,7 @@ app.get('/api/agent/download/:customerId', (req, res) => {
 
     const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
     const host = req.get('host') || 'localhost:5000';
-    const serverUrl = `${proto}://${host}`;
+    const serverUrl = server_url || `${proto}://${host}`;
 
     const safeName = (customer.name || 'Musteri').replace(/[^a-zA-Z0-9_\u00C0-\u017F]/g, '_');
     const label = targetType === 'server' ? 'Sunucu' : 'PC';
