@@ -1453,7 +1453,7 @@ app.delete('/api/virtual-machines/:id', (req, res) => {
 // Serve dynamic PowerShell script locked to customer
 app.get('/api/agent/collector.ps1', (req, res) => {
   try {
-    const { c: customerId, b: branchName } = req.query;
+    const { c: customerId, b: branchName, t: targetType = 'computer' } = req.query;
     if (!customerId) {
       return res.status(400).send('# Hata: Müşteri parametresi (c) zorunludur.');
     }
@@ -1470,7 +1470,8 @@ app.get('/api/agent/collector.ps1', (req, res) => {
       customerId: customer.id,
       customerName: customer.name,
       branchName: branchName || 'Merkez Ofis',
-      serverUrl
+      serverUrl,
+      targetType
     });
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -1486,6 +1487,7 @@ app.get('/api/agent/download/:customerId', (req, res) => {
     const customerId = req.params.customerId;
     const branchName = req.query.b || 'Merkez Ofis';
     const format = req.query.format || 'bat';
+    const targetType = req.query.t || 'computer';
 
     const customer = db.prepare('SELECT id, name FROM customers WHERE id = ?').get(customerId);
     if (!customer) {
@@ -1497,15 +1499,17 @@ app.get('/api/agent/download/:customerId', (req, res) => {
     const serverUrl = `${proto}://${host}`;
 
     const safeName = (customer.name || 'Musteri').replace(/[^a-zA-Z0-9_\u00C0-\u017F]/g, '_');
+    const label = targetType === 'server' ? 'Sunucu' : 'PC';
 
     if (format === 'ps1') {
       const script = agentCollector.generateCollectorScript({
         customerId: customer.id,
         customerName: customer.name,
         branchName,
-        serverUrl
+        serverUrl,
+        targetType
       });
-      res.setHeader('Content-Disposition', `attachment; filename="OMNIFlow_${safeName}_Toplayici.ps1"`);
+      res.setHeader('Content-Disposition', `attachment; filename="OMNIFlow_${safeName}_${label}_Toplayici.ps1"`);
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       return res.send(script);
     } else {
@@ -1513,9 +1517,10 @@ app.get('/api/agent/download/:customerId', (req, res) => {
         customerId: customer.id,
         customerName: customer.name,
         branchName,
-        serverUrl
+        serverUrl,
+        targetType
       });
-      res.setHeader('Content-Disposition', `attachment; filename="OMNIFlow_${safeName}_Toplayici.bat"`);
+      res.setHeader('Content-Disposition', `attachment; filename="OMNIFlow_${safeName}_${label}_Toplayici.bat"`);
       res.setHeader('Content-Type', 'application/x-bat; charset=utf-8');
       return res.send(bat);
     }
@@ -1531,6 +1536,17 @@ app.post('/api/agent/register-computer', (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Agent register computer error:', err.message);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// Register Physical Server from PowerShell Agent
+app.post('/api/agent/register-server', (req, res) => {
+  try {
+    const result = agentCollector.handleRegisterServer(db, req.body);
+    res.json(result);
+  } catch (err) {
+    console.error('Agent register server error:', err.message);
     res.status(400).json({ success: false, error: err.message });
   }
 });

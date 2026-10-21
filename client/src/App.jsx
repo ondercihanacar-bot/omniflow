@@ -1674,6 +1674,7 @@ export default function App() {
 
                 {activeTab === 'servers' && (
                   <PhysicalServersTab
+                    customer={selectedCustomer}
                     servers={customerData.physical_servers || []}
                     branches={customerBranches}
                     canEdit={checkPermission(currentUser, 'edit')}
@@ -1688,6 +1689,7 @@ export default function App() {
                       setIsServerModalOpen(true);
                     }}
                     onDelete={handleDeleteServer}
+                    onReloadCustomer={() => selectedCustomer && loadCustomerDetails(selectedCustomer.id)}
                   />
                 )}
 

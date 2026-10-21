@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X, Laptop, Zap, Copy, Check, Download, ShieldCheck,
   Terminal, FileCode, WifiOff, Sparkles, Building2, CheckCircle2,
-  ExternalLink, Info, AlertCircle
+  ExternalLink, Info, AlertCircle, Server
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import { api } from '../api';
@@ -12,14 +12,20 @@ export default function ComputerCollectorModal({
   onClose,
   onSuccess,
   customer,
-  branches = []
+  branches = [],
+  initialTargetType = 'computer' // 'computer' | 'server'
 }) {
   const [activeTab, setActiveTab] = useState('command'); // 'command' | 'download' | 'offline'
+  const [targetType, setTargetType] = useState(initialTargetType);
   const [selectedBranch, setSelectedBranch] = useState(branches[0] || 'Merkez Ofis');
   const [serverMode, setServerMode] = useState('cloud'); // 'cloud' | 'local'
   const [offlineJson, setOfflineJson] = useState('');
   const [isSubmittingOffline, setIsSubmittingOffline] = useState(false);
   const [offlineError, setOfflineError] = useState(null);
+
+  useEffect(() => {
+    setTargetType(initialTargetType || 'computer');
+  }, [initialTargetType, isOpen]);
 
   if (!isOpen || !customer) return null;
 
@@ -29,11 +35,14 @@ export default function ComputerCollectorModal({
   const baseUrl = serverMode === 'cloud' ? cloudUrl : localUrl;
 
   const branchParam = encodeURIComponent(selectedBranch);
-  const psCommand = `powershell -ExecutionPolicy Bypass -Command "irm '${baseUrl}/api/agent/collector.ps1?c=${customer.id}&b=${branchParam}' | iex"`;
-  const shortCommand = `irm '${baseUrl}/api/agent/collector.ps1?c=${customer.id}&b=${branchParam}' | iex`;
+  const isServer = targetType === 'server';
+  const typeParam = isServer ? '&t=server' : '';
 
-  const downloadUrl = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}&format=bat`;
-  const downloadPs1Url = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}&format=ps1`;
+  const psCommand = `powershell -ExecutionPolicy Bypass -Command "irm '${baseUrl}/api/agent/collector.ps1?c=${customer.id}&b=${branchParam}${typeParam}' | iex"`;
+  const shortCommand = `irm '${baseUrl}/api/agent/collector.ps1?c=${customer.id}&b=${branchParam}${typeParam}' | iex`;
+
+  const downloadUrl = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&format=bat`;
+  const downloadPs1Url = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&format=ps1`;
 
   // Submit offline JSON
   const handleSaveOfflineJson = async () => {
@@ -45,7 +54,11 @@ export default function ComputerCollectorModal({
       parsed.customer_id = customer.id;
       if (!parsed.branch_name) parsed.branch_name = selectedBranch;
 
-      const res = await fetch(`${baseUrl}/api/agent/register-computer`, {
+      const endpoint = isServer
+        ? `${baseUrl}/api/agent/register-server`
+        : `${baseUrl}/api/agent/register-computer`;
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(parsed)
@@ -53,7 +66,7 @@ export default function ComputerCollectorModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Kayıt başarısız');
 
-      alert(`✅ Başarılı: ${data.message || 'Bilgisayar envantere eklendi!'}`);
+      alert(`✅ Başarılı: ${data.message || (isServer ? 'Sunucu envantere eklendi!' : 'Bilgisayar envantere eklendi!')}`);
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
@@ -72,18 +85,28 @@ export default function ComputerCollectorModal({
         {/* Header */}
         <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/40 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">
-              <Zap className="w-5 h-5 fill-amber-400/20" />
+            <div className={`p-2.5 rounded-xl border ${
+              isServer
+                ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+                : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+            }`}>
+              {isServer ? <Server className="w-5 h-5 fill-indigo-400/20" /> : <Zap className="w-5 h-5 fill-amber-400/20" />}
             </div>
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>Otomatik Donanım &amp; Lisans Toplayıcı</span>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
+                <span>{isServer ? 'Otomatik Fiziki Sunucu Toplayıcı' : 'Otomatik Donanım & Lisans Toplayıcı'}</span>
+                <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border ${
+                  isServer
+                    ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                }`}>
                   PowerShell
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                Hedef bilgisayarda hiçbir program kurmadan tüm özellikleri 2 saniyede çekin.
+                {isServer
+                  ? 'Hedef sunucuda kurulum yapmadan donanım, CPU, RAM, Disk ve IP/MAC bilgilerini saniyeler içinde çekin.'
+                  : 'Hedef bilgisayarda hiçbir program kurmadan tüm özellikleri 2 saniyede çekin.'}
               </p>
             </div>
           </div>
@@ -95,13 +118,41 @@ export default function ComputerCollectorModal({
           </button>
         </div>
 
-        {/* Customer & Branch Target Bar */}
+        {/* Customer, Type & Branch Target Bar */}
         <div className="px-6 py-3 bg-slate-950/70 border-b border-slate-800 flex items-center justify-between gap-4 flex-wrap shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400">Hedef Müşteri:</span>
             <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-800/60">
               {customer.name}
             </span>
+          </div>
+
+          {/* Mode Switch: PC vs Sunucu */}
+          <div className="flex items-center bg-slate-900 p-1 rounded-lg border border-slate-800 shrink-0">
+            <button
+              type="button"
+              onClick={() => setTargetType('computer')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                !isServer
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Laptop className="w-3.5 h-3.5" />
+              <span>Kullanıcı PC</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTargetType('server')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                isServer
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Server className="w-3.5 h-3.5" />
+              <span>Fiziki Sunucu</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-2 text-xs text-slate-300">
@@ -131,7 +182,7 @@ export default function ComputerCollectorModal({
             }`}
           >
             <Terminal className="w-4 h-4 text-amber-400" />
-            <span>1. Tek Satırlık Komut (AnyDesk / RDP)</span>
+            <span>1. Tek Satırlık Komut (PowerShell)</span>
           </button>
 
           <button
@@ -198,11 +249,13 @@ export default function ComputerCollectorModal({
               {/* Command Code Box */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-                  <span>PowerShell Komutu:</span>
+                  <span>{isServer ? 'Fiziki Sunucu PowerShell Komutu:' : 'Kullanıcı PC PowerShell Komutu:'}</span>
                   <span className="text-[11px] text-emerald-400 font-medium">Tek tıkla kopyalayın</span>
                 </label>
-                <div className="bg-slate-950 border border-amber-500/50 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-inner">
-                  <code className="text-xs text-amber-200 font-mono select-all break-all">
+                <div className={`bg-slate-950 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-inner border ${
+                  isServer ? 'border-indigo-500/50' : 'border-amber-500/50'
+                }`}>
+                  <code className={`text-xs font-mono select-all break-all ${isServer ? 'text-indigo-200' : 'text-amber-200'}`}>
                     {shortCommand}
                   </code>
                   <CopyButton text={shortCommand} title="PowerShell Komutunu Kopyala" />
@@ -222,7 +275,7 @@ export default function ComputerCollectorModal({
                       1
                     </span>
                     <p className="text-slate-300 leading-relaxed">
-                      AnyDesk veya TeamViewer ile bağlandığınız bilgisayarda <strong className="text-white">Windows Tuşu + X</strong> menüsünden veya Başlat aramasından <strong className="text-white">PowerShell</strong>&apos;i açın.
+                      Hedef {isServer ? 'sunucuda (RDP / Konsol)' : 'bilgisayarda (AnyDesk / Başlat)'} <strong className="text-white">Windows Tuşu + X</strong> menüsünden veya Başlat aramasından <strong className="text-white">PowerShell</strong> uygulamasını açın.
                     </p>
                   </div>
 
@@ -231,7 +284,7 @@ export default function ComputerCollectorModal({
                       2
                     </span>
                     <p className="text-slate-300 leading-relaxed">
-                      Yukarıdaki tek satırlık kodu kopyalayıp PowerShell penceresine yapıştırın ve <strong className="text-white">Enter</strong>&apos;a basın.
+                      Yukarıdaki tek satırlık kodu kopyalayıp PowerShell penceresine yapıştırın ve <strong className="text-white">Enter</strong> tuşuna basın.
                     </p>
                   </div>
 
@@ -240,7 +293,9 @@ export default function ComputerCollectorModal({
                       3
                     </span>
                     <p className="text-slate-300 leading-relaxed">
-                      Script 2 saniyede CPU, RAM, Disk, Windows Lisansı (OEM Key), Office, IP/MAC ve AnyDesk ID&apos;sini okur ve doğrudan <strong className="text-emerald-400">{customer.name}</strong> müşterisinin hanesine kaydeder!
+                      {isServer
+                        ? <>Script 2 saniyede Sunucu Adı, Marka, Model, Seri No / Service Tag, İşlemci (Xeon/EPYC), RAM, Diskler ve IP/MAC adreslerini okur ve doğrudan <strong className="text-indigo-400">{customer.name}</strong> müşterisinin <strong className="text-white">Fiziki Sunucular</strong> sekmesine kaydeder!</>
+                        : <>Script 2 saniyede CPU, RAM, Disk, Windows Lisansı (OEM Key), Office, IP/MAC ve AnyDesk ID&apos;sini okur ve doğrudan <strong className="text-emerald-400">{customer.name}</strong> müşterisinin <strong className="text-white">Kullanıcı PC</strong> hanesine kaydeder!</>}
                     </p>
                   </div>
                 </div>
@@ -256,7 +311,7 @@ export default function ComputerCollectorModal({
                 <div className="text-xs space-y-1">
                   <div className="font-bold text-blue-300">Taşınabilir Çalıştırıcı Dosyası (.bat / .ps1)</div>
                   <p className="text-slate-300 leading-relaxed">
-                    Bu dosyayı bir kez indirip USB belleğinize veya AnyDesk dosya transferiyle karşı bilgisayarın masaüstüne atabilirsiniz. Çift tıklandığında otomatik olarak <strong className="text-white">{customer.name}</strong> hanesine kaydeder.
+                    Bu dosyayı bir kez indirip USB belleğinize veya AnyDesk / RDP dosya transferiyle makinenin masaüstüne atabilirsiniz. Çift tıklandığında otomatik olarak <strong className="text-white">{customer.name}</strong> ({isServer ? 'Fiziki Sunucular' : 'Kullanıcı PC'}) hanesine kaydeder.
                   </p>
                 </div>
               </div>
@@ -272,7 +327,9 @@ export default function ComputerCollectorModal({
                       <Download className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-white group-hover:text-blue-300">Toplayici.bat İndir</div>
+                      <div className="text-xs font-bold text-white group-hover:text-blue-300">
+                        {isServer ? 'Sunucu_Toplayici.bat İndir' : 'Toplayici.bat İndir'}
+                      </div>
                       <div className="text-[11px] text-slate-400">Çift tıklayarak anında çalıştırın</div>
                     </div>
                   </div>
@@ -291,7 +348,9 @@ export default function ComputerCollectorModal({
                       <FileCode className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-white group-hover:text-amber-300">Toplayici.ps1 İndir</div>
+                      <div className="text-xs font-bold text-white group-hover:text-amber-300">
+                        {isServer ? 'Sunucu_Toplayici.ps1 İndir' : 'Toplayici.ps1 İndir'}
+                      </div>
                       <div className="text-[11px] text-slate-400">Ham PowerShell scripti</div>
                     </div>
                   </div>
@@ -309,9 +368,9 @@ export default function ComputerCollectorModal({
               <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-3.5 flex items-start gap-3">
                 <WifiOff className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1">
-                  <div className="font-bold text-emerald-300">İnternetsiz / Güvenlikli Bilgisayarlar İçin</div>
+                  <div className="font-bold text-emerald-300">İnternetsiz / Güvenlikli Cihazlar İçin</div>
                   <p className="text-slate-300 leading-relaxed">
-                    Eğer hedef bilgisayar internete bağlı değilse veya firewall dışarı POST atılmasını engelliyorsa, PowerShell scripti çalıştığında JSON kodunu ekrana basar ve panoya kopyalar. O JSON kodunu buraya yapıştırıp kaydedebilirsiniz.
+                    Eğer hedef {isServer ? 'sunucu' : 'bilgisayar'} internete bağlı değilse veya firewall dışarı POST atılmasını engelliyorsa, PowerShell scripti çalıştığında JSON kodunu ekrana basar ve panoya kopyalar. O JSON kodunu buraya yapıştırıp kaydedebilirsiniz.
                   </p>
                 </div>
               </div>
@@ -324,7 +383,11 @@ export default function ComputerCollectorModal({
                   rows={6}
                   value={offlineJson}
                   onChange={(e) => setOfflineJson(e.target.value)}
-                  placeholder={`{\n  "computer_name": "PC-MUH-01",\n  "brand": "Lenovo",\n  "model": "ThinkCentre",\n  "serial_number": "MJ0DK198",\n  ...\n}`}
+                  placeholder={
+                    isServer
+                      ? `{\n  "server_name": "SRV-DC01",\n  "brand": "Dell Inc.",\n  "model": "PowerEdge R740",\n  "serial_number": "8X7K9Z2",\n  "cpu_info": "2 x Intel Xeon Silver 4210R",\n  "ram_info": "64 GB RAM",\n  "disk_info": "PERC H730P (4x 960GB SSD)",\n  "ip_address": "192.168.1.10"\n}`
+                      : `{\n  "computer_name": "PC-MUH-01",\n  "brand": "Lenovo",\n  "model": "ThinkCentre",\n  "serial_number": "MJ0DK198",\n  ...\n}`
+                  }
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </div>

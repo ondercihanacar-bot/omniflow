@@ -1,17 +1,30 @@
 import React, { useState } from 'react';
 import {
   Server, Plus, Search, Edit2, Trash2, Cpu, HardDrive, Network,
-  Key, Layers, CheckCircle2, AlertCircle, Building2, Table, LayoutGrid, Shield, Globe
+  Key, Layers, CheckCircle2, AlertCircle, Building2, Table, LayoutGrid, Shield, Globe, Zap
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
+import ComputerCollectorModal from './ComputerCollectorModal';
 import { openWebPanel } from '../utils/launcher';
 
-export default function PhysicalServersTab({ servers = [], onAdd, onEdit, onDelete }) {
+export default function PhysicalServersTab({
+  customer,
+  servers = [],
+  branches = [],
+  canEdit = true,
+  canDelete = true,
+  canViewPasswords = true,
+  onAdd,
+  onEdit,
+  onDelete,
+  onReloadCustomer
+}) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem('server_view_mode') || 'table';
   });
+  const [isCollectorModalOpen, setIsCollectorModalOpen] = useState(false);
 
   const handleSetViewMode = (mode) => {
     setViewMode(mode);
@@ -76,13 +89,28 @@ export default function PhysicalServersTab({ servers = [], onAdd, onEdit, onDele
           </div>
         </div>
 
-        <button
-          onClick={onAdd}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Yeni Fiziki Sunucu Ekle</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {customer && (
+            <button
+              onClick={() => setIsCollectorModalOpen(true)}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-indigo-600/30 to-blue-600/30 hover:from-indigo-600/40 hover:to-blue-600/40 text-indigo-200 text-xs font-bold rounded-lg border border-indigo-500/40 transition-colors cursor-pointer shrink-0 shadow-sm"
+              title="PowerShell ile bu sunucunun donanım, CPU, RAM, Disk ve IP/MAC bilgilerini tek tıkla çekin"
+            >
+              <Zap className="w-3.5 h-3.5 text-indigo-400" />
+              <span>⚡ Otomatik Sunucu Toplayıcı</span>
+            </button>
+          )}
+
+          {canEdit && (
+            <button
+              onClick={onAdd}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Yeni Fiziki Sunucu Ekle</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* CONTENT */}
@@ -444,6 +472,19 @@ export default function PhysicalServersTab({ servers = [], onAdd, onEdit, onDele
             </table>
           </div>
         </div>
+      )}
+      {/* Collector Modal for Physical Servers */}
+      {customer && (
+        <ComputerCollectorModal
+          isOpen={isCollectorModalOpen}
+          onClose={() => setIsCollectorModalOpen(false)}
+          customer={customer}
+          branches={branches}
+          initialTargetType="server"
+          onSuccess={() => {
+            if (onReloadCustomer) onReloadCustomer();
+          }}
+        />
       )}
     </div>
   );
