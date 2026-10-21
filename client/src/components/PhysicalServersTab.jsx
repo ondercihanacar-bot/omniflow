@@ -31,6 +31,13 @@ export default function PhysicalServersTab({
     localStorage.setItem('server_view_mode', mode);
   };
 
+  const getEthernetPorts = (srv) => [
+    { num: 1, label: 'ETH1', ip: srv.ip_address, mac: srv.mac_address },
+    { num: 2, label: 'ETH2', ip: srv.ip_address_2, mac: srv.mac_address_2 },
+    { num: 3, label: 'ETH3', ip: srv.ip_address_3, mac: srv.mac_address_3 },
+    { num: 4, label: 'ETH4', ip: srv.ip_address_4, mac: srv.mac_address_4 },
+  ].filter(p => p.ip || p.mac);
+
   const filtered = servers.filter(s => {
     const q = search.toLowerCase();
     return (
@@ -39,6 +46,12 @@ export default function PhysicalServersTab({
       (s.model || '').toLowerCase().includes(q) ||
       (s.ip_address || '').toLowerCase().includes(q) ||
       (s.mac_address || '').toLowerCase().includes(q) ||
+      (s.ip_address_2 || '').toLowerCase().includes(q) ||
+      (s.mac_address_2 || '').toLowerCase().includes(q) ||
+      (s.ip_address_3 || '').toLowerCase().includes(q) ||
+      (s.mac_address_3 || '').toLowerCase().includes(q) ||
+      (s.ip_address_4 || '').toLowerCase().includes(q) ||
+      (s.mac_address_4 || '').toLowerCase().includes(q) ||
       (s.serial_number || '').toLowerCase().includes(q) ||
       (s.management_ip || '').toLowerCase().includes(q)
     );
@@ -214,22 +227,35 @@ export default function PhysicalServersTab({
                   )}
                 </div>
 
-                {/* Network */}
-                <div className="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/60 space-y-1">
-                  <div className="text-[10px] text-slate-400 uppercase font-semibold">Ağ (IP & MAC)</div>
-                  {s.ip_address ? (
-                    <div className="flex items-center justify-between font-mono text-xs text-white">
-                      <span className="font-bold text-blue-300">{s.ip_address}</span>
-                      <CopyButton text={s.ip_address} title="IP Kopyala" />
+                {/* Network (4-Port Ethernet) */}
+                <div className="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/60 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold">Ağ Bağlantıları</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-950/80 text-indigo-300 font-bold border border-indigo-800/50">
+                      {getEthernetPorts(s).length > 0 ? `${getEthernetPorts(s).length} Port` : 'Port Yok'}
+                    </span>
+                  </div>
+                  {getEthernetPorts(s).length > 0 ? (
+                    <div className="space-y-1">
+                      {getEthernetPorts(s).map((p) => (
+                        <div key={p.num} className="font-mono text-[11px] bg-slate-900/80 px-2 py-1 rounded border border-slate-800/60">
+                          <div className="flex items-center justify-between text-blue-300">
+                            <span className="text-[10px] font-bold text-indigo-400">ETH{p.num}:</span>
+                            <span className="font-semibold truncate">{p.ip || '-'}</span>
+                            {p.ip && <CopyButton text={p.ip} title={`ETH${p.num} IP Kopyala`} />}
+                          </div>
+                          {p.mac && (
+                            <div className="flex items-center justify-between text-[9px] text-slate-400 mt-0.5">
+                              <span className="text-slate-500">MAC:</span>
+                              <span className="truncate">{p.mac}</span>
+                              <CopyButton text={p.mac} title={`ETH${p.num} MAC Kopyala`} />
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   ) : (
-                    <span className="text-slate-500 text-[11px] italic">IP Belirtilmedi</span>
-                  )}
-                  {s.mac_address && (
-                    <div className="flex items-center justify-between font-mono text-[10px] text-slate-400">
-                      <span className="truncate">{s.mac_address}</span>
-                      <CopyButton text={s.mac_address} title="MAC Kopyala" />
-                    </div>
+                    <span className="text-slate-500 text-[11px] italic">Ağ Yapılandırılmadı</span>
                   )}
                 </div>
               </div>
@@ -348,23 +374,31 @@ export default function PhysicalServersTab({
                       )}
                     </td>
 
-                    {/* Network IP & MAC */}
+                    {/* Network IP & MAC (Up to 4 Ethernet Ports) */}
                     <td className="py-3 px-3.5 font-mono">
-                      {s.ip_address ? (
-                        <div className="flex items-center gap-1 text-slate-200">
-                          <span className="text-slate-400 text-[11px]">IP:</span>
-                          <span className="font-semibold text-blue-300">{s.ip_address}</span>
-                          <CopyButton text={s.ip_address} />
+                      {getEthernetPorts(s).length > 0 ? (
+                        <div className="space-y-1">
+                          {getEthernetPorts(s).map((p) => (
+                            <div key={p.num} className="bg-slate-950/70 px-2 py-1 rounded border border-slate-800/80">
+                              <div className="flex items-center justify-between gap-1.5">
+                                <span className="text-[10px] font-bold px-1 py-0.2 rounded bg-indigo-950 text-indigo-300 border border-indigo-700/50">
+                                  ETH{p.num}
+                                </span>
+                                <span className="font-semibold text-blue-300 text-[11px] truncate">{p.ip || '-'}</span>
+                                {p.ip && <CopyButton text={p.ip} title={`ETH${p.num} IP Kopyala`} />}
+                              </div>
+                              {p.mac && (
+                                <div className="flex items-center justify-between gap-1 text-[9px] text-slate-400 mt-0.5">
+                                  <span className="text-slate-500">MAC:</span>
+                                  <span className="truncate max-w-[120px]">{p.mac}</span>
+                                  <CopyButton text={p.mac} title={`ETH${p.num} MAC Kopyala`} />
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       ) : (
                         <span className="text-slate-500 text-[11px]">-</span>
-                      )}
-                      {s.mac_address && (
-                        <div className="flex items-center gap-1 text-slate-400 text-[10px] mt-0.5">
-                          <span className="text-slate-500">MAC:</span>
-                          <span className="truncate max-w-[120px]">{s.mac_address}</span>
-                          <CopyButton text={s.mac_address} />
-                        </div>
                       )}
                     </td>
 

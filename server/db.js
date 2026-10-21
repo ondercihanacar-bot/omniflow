@@ -41,6 +41,12 @@ db.exec(`
     disk_info TEXT,
     ip_address TEXT,
     mac_address TEXT,
+    ip_address_2 TEXT,
+    mac_address_2 TEXT,
+    ip_address_3 TEXT,
+    mac_address_3 TEXT,
+    ip_address_4 TEXT,
+    mac_address_4 TEXT,
     management_ip TEXT,
     management_user TEXT,
     management_password TEXT,
@@ -336,6 +342,12 @@ function runMigrations() {
   // Local Admin columns migration
   tryAddCol('physical_servers', 'local_admin_user TEXT');
   tryAddCol('physical_servers', 'local_admin_password TEXT');
+  tryAddCol('physical_servers', 'ip_address_2 TEXT');
+  tryAddCol('physical_servers', 'mac_address_2 TEXT');
+  tryAddCol('physical_servers', 'ip_address_3 TEXT');
+  tryAddCol('physical_servers', 'mac_address_3 TEXT');
+  tryAddCol('physical_servers', 'ip_address_4 TEXT');
+  tryAddCol('physical_servers', 'mac_address_4 TEXT');
   tryAddCol('virtual_machines', 'local_admin_user TEXT');
   tryAddCol('virtual_machines', 'local_admin_password TEXT');
   tryAddCol('user_computers', 'local_admin_user TEXT');

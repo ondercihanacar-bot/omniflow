@@ -1,17 +1,30 @@
 import React, { useState } from 'react';
 import {
   Cloud, Plus, Search, Edit2, Trash2, Key, Cpu, HardDrive,
-  CheckCircle2, Server, Table, LayoutGrid, Network, Info, Shield, Monitor
+  CheckCircle2, Server, Table, LayoutGrid, Network, Info, Shield, Monitor, Zap
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import PasswordEye from './PasswordEye';
+import ComputerCollectorModal from './ComputerCollectorModal';
 import { downloadRdpFile } from '../utils/launcher';
 
-export default function VirtualMachinesTab({ vms = [], physicalServers = [], onAdd, onEdit, onDelete }) {
+export default function VirtualMachinesTab({
+  customer,
+  branches = [],
+  vms = [],
+  physicalServers = [],
+  canEdit = true,
+  canDelete = true,
+  onAdd,
+  onEdit,
+  onDelete,
+  onReloadCustomer
+}) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem('vm_view_mode') || 'table';
   });
+  const [isCollectorModalOpen, setIsCollectorModalOpen] = useState(false);
 
   const handleSetViewMode = (mode) => {
     setViewMode(mode);
@@ -79,13 +92,28 @@ export default function VirtualMachinesTab({ vms = [], physicalServers = [], onA
           </div>
         </div>
 
-        <button
-          onClick={onAdd}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Yeni Sanal Makine (VM) Ekle</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {customer && (
+            <button
+              onClick={() => setIsCollectorModalOpen(true)}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-purple-600/30 to-pink-600/30 hover:from-purple-600/40 hover:to-pink-600/40 text-purple-200 text-xs font-bold rounded-lg border border-purple-500/40 transition-colors cursor-pointer shrink-0 shadow-sm"
+              title="PowerShell ile bu Sanal Makinenin (VM) Hypervisor, vCPU, RAM, Disk, Lisans ve IP/MAC bilgilerini tek tıkla çekin"
+            >
+              <Zap className="w-3.5 h-3.5 text-purple-400" />
+              <span>⚡ Otomatik VM Toplayıcı</span>
+            </button>
+          )}
+
+          {canEdit && (
+            <button
+              onClick={onAdd}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Yeni Sanal Makine (VM) Ekle</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* CONTENT: Either Card Grid OR Extended Table */}
@@ -463,6 +491,20 @@ export default function VirtualMachinesTab({ vms = [], physicalServers = [], onA
             </table>
           </div>
         </div>
+      )}
+
+      {/* Collector Modal for Virtual Machines */}
+      {customer && (
+        <ComputerCollectorModal
+          isOpen={isCollectorModalOpen}
+          onClose={() => setIsCollectorModalOpen(false)}
+          onSuccess={() => {
+            if (onReloadCustomer) onReloadCustomer();
+          }}
+          customer={customer}
+          branches={branches}
+          initialTargetType="vm"
+        />
       )}
     </div>
   );

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   X, Server, Cloud, Laptop, Shield, Database,
   Sparkles, ClipboardPaste, Check, AlertCircle, ChevronDown, ChevronUp,
-  Plus, Trash2, Search
+  Plus, Trash2, Search, Network
 } from 'lucide-react';
 
 // ==================== PREDEFINED ENTERPRISE IT PRESETS ====================
@@ -540,6 +540,12 @@ export function ServerModal({ isOpen, onClose, onSave, server = null, customerId
     disk_info: '',
     ip_address: '',
     mac_address: '',
+    ip_address_2: '',
+    mac_address_2: '',
+    ip_address_3: '',
+    mac_address_3: '',
+    ip_address_4: '',
+    mac_address_4: '',
     management_ip: '',
     management_user: '',
     management_password: '',
@@ -558,6 +564,12 @@ export function ServerModal({ isOpen, onClose, onSave, server = null, customerId
         branch_name: 'Merkez Ofis',
         local_admin_user: '',
         local_admin_password: '',
+        ip_address_2: '',
+        mac_address_2: '',
+        ip_address_3: '',
+        mac_address_3: '',
+        ip_address_4: '',
+        mac_address_4: '',
         ...server,
         customer_id: server.customer_id || customerId
       });
@@ -573,6 +585,12 @@ export function ServerModal({ isOpen, onClose, onSave, server = null, customerId
         disk_info: '',
         ip_address: '',
         mac_address: '',
+        ip_address_2: '',
+        mac_address_2: '',
+        ip_address_3: '',
+        mac_address_3: '',
+        ip_address_4: '',
+        mac_address_4: '',
         management_ip: '',
         management_user: '',
         management_password: '',
@@ -592,7 +610,7 @@ export function ServerModal({ isOpen, onClose, onSave, server = null, customerId
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto"
     >
-      <div className="bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl max-w-2xl w-full my-8 text-slate-100 overflow-hidden">
+      <div className="bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl max-w-3xl w-full my-8 text-slate-100 overflow-hidden">
         <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/40">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-indigo-600/20 text-indigo-400 rounded-lg border border-indigo-500/30">
@@ -719,60 +737,178 @@ export function ServerModal({ isOpen, onClose, onSave, server = null, customerId
           </div>
 
           <div className="border-t border-slate-800 pt-3">
-            <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">Ağ & Yönetim (iDRAC / iLO)</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Sunucu IP Adresi</label>
-                <input
-                  type="text"
-                  placeholder="Örn: 192.168.10.10"
-                  value={formData.ip_address}
-                  onChange={(e) => setFormData({ ...formData, ip_address: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-indigo-500 focus:outline-none"
-                />
+            <div className="flex items-center justify-between mb-2.5">
+              <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Network className="w-3.5 h-3.5 text-indigo-400" />
+                Ethernet Ağ Bağlantıları (4 Port RJ45 / SFP+)
+              </h4>
+              <span className="text-[11px] text-slate-400">4 Ayrı Donanımsal Port Tanımı</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Port 1 */}
+              <div className="bg-slate-950/70 border border-slate-800/90 rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    Ethernet 1 (Birincil / Port 1)
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">IP Adresi</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 192.168.2.253"
+                      value={formData.ip_address || ''}
+                      onChange={(e) => setFormData({ ...formData, ip_address: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">MAC Adresi</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 00:1E:67:84:A1:01"
+                      value={formData.mac_address || ''}
+                      onChange={(e) => setFormData({ ...formData, mac_address: e.target.value.toUpperCase() })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:border-indigo-500 focus:outline-none uppercase"
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">MAC Adresi</label>
-                <input
-                  type="text"
-                  placeholder="Örn: 00:1E:67:84:A1:01"
-                  value={formData.mac_address}
-                  onChange={(e) => setFormData({ ...formData, mac_address: e.target.value.toUpperCase() })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-indigo-500 focus:outline-none uppercase"
-                />
+
+              {/* Port 2 */}
+              <div className="bg-slate-950/70 border border-slate-800/90 rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                    Ethernet 2 (Port 2)
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">IP Adresi</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 192.168.2.254"
+                      value={formData.ip_address_2 || ''}
+                      onChange={(e) => setFormData({ ...formData, ip_address_2: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">MAC Adresi</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 00:1E:67:84:A1:02"
+                      value={formData.mac_address_2 || ''}
+                      onChange={(e) => setFormData({ ...formData, mac_address_2: e.target.value.toUpperCase() })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:border-indigo-500 focus:outline-none uppercase"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Port 3 */}
+              <div className="bg-slate-950/70 border border-slate-800/90 rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                    Ethernet 3 (Port 3)
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">IP Adresi</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 192.168.10.10"
+                      value={formData.ip_address_3 || ''}
+                      onChange={(e) => setFormData({ ...formData, ip_address_3: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">MAC Adresi</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 00:1E:67:84:A1:03"
+                      value={formData.mac_address_3 || ''}
+                      onChange={(e) => setFormData({ ...formData, mac_address_3: e.target.value.toUpperCase() })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:border-indigo-500 focus:outline-none uppercase"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Port 4 */}
+              <div className="bg-slate-950/70 border border-slate-800/90 rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                    Ethernet 4 (Port 4)
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">IP Adresi</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 192.168.20.10"
+                      value={formData.ip_address_4 || ''}
+                      onChange={(e) => setFormData({ ...formData, ip_address_4: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">MAC Adresi</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 00:1E:67:84:A1:04"
+                      value={formData.mac_address_4 || ''}
+                      onChange={(e) => setFormData({ ...formData, mac_address_4: e.target.value.toUpperCase() })}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:border-indigo-500 focus:outline-none uppercase"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Yönetim IP (iDRAC/iLO)</label>
-                <input
-                  type="text"
-                  placeholder="Örn: 192.168.10.15"
-                  value={formData.management_ip}
-                  onChange={(e) => setFormData({ ...formData, management_ip: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Yönetim Kullanıcı Adı</label>
-                <input
-                  type="text"
-                  placeholder="Örn: root"
-                  value={formData.management_user}
-                  onChange={(e) => setFormData({ ...formData, management_user: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Yönetim Parolası</label>
-                <input
-                  type="text"
-                  placeholder="Parola"
-                  value={formData.management_password}
-                  onChange={(e) => setFormData({ ...formData, management_password: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-indigo-500 focus:outline-none"
-                />
+            {/* iDRAC / iLO Management Section */}
+            <div className="mt-4 pt-3 border-t border-slate-800/80">
+              <h5 className="text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2">Yönetim Arayüzü (iDRAC / iLO)</h5>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Yönetim IP</label>
+                  <input
+                    type="text"
+                    placeholder="Örn: 192.168.10.15"
+                    value={formData.management_ip || ''}
+                    onChange={(e) => setFormData({ ...formData, management_ip: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Yönetim Kullanıcı</label>
+                  <input
+                    type="text"
+                    placeholder="Örn: root"
+                    value={formData.management_user || ''}
+                    onChange={(e) => setFormData({ ...formData, management_user: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Yönetim Parolası</label>
+                  <input
+                    type="text"
+                    placeholder="Parola"
+                    value={formData.management_password || ''}
+                    onChange={(e) => setFormData({ ...formData, management_password: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
           </div>

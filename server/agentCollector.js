@@ -5,6 +5,165 @@ function generateCollectorScript({ customerId, customerName, branchName, serverU
   const safeCustomerName = (customerName || 'Müşteri').replace(/["`$]/g, '');
   const safeBranch = (branchName || 'Merkez Ofis').replace(/["`$]/g, '');
   const safeServerUrl = serverUrl.replace(/\/+$/, '');
+  const isVM = targetType === 'vm';
+
+  if (isVM) {
+    return `# OMNIFlow PowerShell VM & Sanal Makine Collector Agent
+# Customer: ${safeCustomerName} (ID: ${customerId})
+# Target: Sanal Makine (Virtual Machine - VM)
+
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+\$OutputEncoding = [System.Text.Encoding]::UTF8
+try { \$Host.UI.RawUI.WindowTitle = "OMNIFlow VM Toplayıcı - ${safeCustomerName}" } catch {}
+
+Clear-Host
+Write-Host "==========================================================" -ForegroundColor Magenta
+Write-Host "   ⚡ OMNIFlow Otomatik Sanal Makine (VM) Toplayıcı" -ForegroundColor Yellow
+Write-Host "   🏢 Müşteri : ${safeCustomerName}" -ForegroundColor Green
+Write-Host "   📍 Hedef   : Sanal Makine Envanteri" -ForegroundColor White
+Write-Host "==========================================================" -ForegroundColor Magenta
+Write-Host ""
+Write-Host "[1/5] 🔍 VM Hostname ve Sanallaştırıcı (Hypervisor) taranıyor..." -ForegroundColor Gray
+
+\$compName = \$env:COMPUTERNAME
+
+\$cs = Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue
+\$mfg = if (\$cs.Manufacturer) { \$cs.Manufacturer.Trim() } else { "" }
+\$model = if (\$cs.Model) { \$cs.Model.Trim() } else { "" }
+\$bios = Get-CimInstance Win32_BIOS -ErrorAction SilentlyContinue
+
+# Detect Hypervisor Platform
+\$hypervisor = "Microsoft Hyper-V"
+if (\$model -match "Virtual Machine|Hyper-V" -or \$mfg -match "Microsoft") {
+    \$hypervisor = "Microsoft Hyper-V"
+} elseif (\$model -match "VMware" -or \$mfg -match "VMware") {
+    \$hypervisor = "VMware ESXi"
+} elseif (\$model -match "KVM|QEMU" -or \$mfg -match "QEMU") {
+    \$hypervisor = "Proxmox VE / KVM"
+} elseif (\$model -match "VirtualBox" -or \$mfg -match "innotek") {
+    \$hypervisor = "Oracle VirtualBox"
+} elseif (\$model -match "Xen" -or \$mfg -match "Xen") {
+    \$hypervisor = "Citrix XenServer"
+} elseif (\$cs.HypervisorPresent -eq \$true) {
+    \$hypervisor = "Hypervisor (Sanal)"
+}
+
+Write-Host "[2/5] ⚙️ vCPU (Sanal İşlemci) taranıyor..." -ForegroundColor Gray
+\$cpus = Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue
+\$totalLogical = (\$cpus | Measure-Object -Property NumberOfLogicalProcessors -Sum).Sum
+\$totalCores = (\$cpus | Measure-Object -Property NumberOfCores -Sum).Sum
+\$vcpu = if (\$totalLogical -gt 0) { "\$totalLogical vCPU" } elseif (\$totalCores -gt 0) { "\$totalCores vCPU" } else { "4 vCPU" }
+
+Write-Host "[3/5] 🧠 RAM ve Sanal Diskler taranıyor..." -ForegroundColor Gray
+\$ramBytes = (Get-CimInstance Win32_PhysicalMemory -ErrorAction SilentlyContinue | Measure-Object -Property Capacity -Sum).Sum
+if (-not \$ramBytes -or \$ramBytes -le 0) {
+    try {
+        \$ramBytes = (Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue).TotalVisibleMemorySize * 1KB
+    } catch {}
+}
+\$ramGB = if (\$ramBytes -gt 0) { [math]::Round(\$ramBytes / 1GB) } else { 0 }
+\$ram = if (\$ramGB -gt 0) { "\$ramGB GB RAM" } else { "8 GB RAM" }
+
+\$disks = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction SilentlyContinue | ForEach-Object {
+    \$sizeGB = [math]::Round(\$_ .Size / 1GB)
+    "\$(\$_ .DeviceID) (\$sizeGB GB)"
+}
+\$disk = if (\$disks) { (\$disks -join " + ") } else { "C: (100 GB)" }
+
+Write-Host "[4/5] 🌐 Sanal Ağ Adaptörü (IP & MAC) okunuyor..." -ForegroundColor Gray
+\$ethIp = ""
+\$ethMac = ""
+try {
+    \$adapters = Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True" -ErrorAction SilentlyContinue
+    foreach (\$a in \$adapters) {
+        \$ipv4 = (\$a.IPAddress | Where-Object { \$_ -match '^\\d+\\.\\d+\\.\\d+\\.\\d+$' } | Select-Object -First 1)
+        if (\$ipv4 -and -not \$ethIp) {
+            \$ethIp = \$ipv4
+            \$ethMac = \$a.MACAddress
+        }
+    }
+} catch {}
+
+\$osObj = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
+\$osVersion = if (\$osObj.Caption) { \$osObj.Caption.Trim() } else { "Windows Server" }
+
+# Windows License Key
+\$osKey = ""
+try {
+    \$osKey = (Get-CimInstance -Query 'select OA3xOriginalProductKey from SoftwareLicensingService' -ErrorAction SilentlyContinue).OA3xOriginalProductKey
+} catch {}
+
+# Server Role Detection
+\$roles = @()
+try {
+    \$features = Get-WindowsFeature -ErrorAction SilentlyContinue | Where-Object { \$_ .Installed -eq \$true }
+    foreach (\$f in \$features) {
+        if (\$f.Name -eq "AD-Domain-Services") { \$roles += "Active Directory (DC)" }
+        elseif (\$f.Name -eq "DNS") { \$roles += "DNS" }
+        elseif (\$f.Name -eq "DHCP") { \$roles += "DHCP" }
+        elseif (\$f.Name -eq "Web-Server") { \$roles += "IIS Web" }
+        elseif (\$f.Name -eq "File-Services") { \$roles += "File Server" }
+        elseif (\$f.Name -eq "Remote-Desktop-Services") { \$roles += "RDS" }
+    }
+} catch {}
+\$roleDesc = if (\$roles.Count -gt 0) { (\$roles -join " / ") } else { "Uygulama / Veritabanı Sunucusu" }
+
+Write-Host "[5/5] 🚀 VM verileri OMNIFlow bulut sunucusuna gönderiliyor..." -ForegroundColor Gray
+
+\$data = @{
+    customer_id       = ${customerId}
+    vm_name           = \$compName
+    hypervisor        = \$hypervisor
+    role_description  = \$roleDesc
+    vcpu              = \$vcpu
+    ram               = \$ram
+    disk              = \$disk
+    ip_address        = \$ethIp
+    mac_address       = \$ethMac
+    os_version        = \$osVersion
+    os_license_key    = \$osKey
+    status            = "Aktif"
+    notes             = "İşletim Sistemi: \$osVersion | Otomatik VM Toplayıcı ile kaydedildi (\$(Get-Date -Format 'dd.MM.yyyy HH:mm'))"
+}
+
+\$jsonBody = \$data | ConvertTo-Json -Compress
+\$apiUrl = "${safeServerUrl}/api/agent/register-vm"
+
+try {
+    [System.Net.ServicePointManager]::SecurityProtocol = 3072 -bor 768 -bor 192
+    [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {\$true}
+
+    \$response = Invoke-RestMethod -Uri \$apiUrl -Method POST -Body ([System.Text.Encoding]::UTF8.GetBytes(\$jsonBody)) -ContentType "application/json; charset=utf-8" -TimeoutSec 15
+
+    Write-Host ""
+    Write-Host "==========================================================" -ForegroundColor Green
+    Write-Host "   ✅ SANAL MAKİNE (VM) BAŞARIYLA KAYDEDİLDİ!" -ForegroundColor Green
+    Write-Host "   VM Adı        : \$compName" -ForegroundColor White
+    Write-Host "   Sanallaştırma : \$hypervisor" -ForegroundColor Cyan
+    Write-Host "   Rol / Görev   : \$roleDesc" -ForegroundColor White
+    Write-Host "   Kaynaklar     : \$vcpu | \$ram | Disk: \$disk" -ForegroundColor White
+    Write-Host "   IP / MAC      : \$ethIp (\$ethMac)" -ForegroundColor White
+    Write-Host "   Müşteri       : ${safeCustomerName}" -ForegroundColor Yellow
+    Write-Host "==========================================================" -ForegroundColor Green
+    Write-Host "OMNIFlow Sanal Makineler sekmesini yenilediğinizde VM anında listelenecektir." -ForegroundColor Gray
+} catch {
+    Write-Host ""
+    Write-Host "❌ Sunucuya bağlanırken bir hata oluştu: \$(\$_ .Exception.Message)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "📋 ÇEVRİMDIŞI YEDEK (Aşağıdaki JSON kodunu OMNIFlow paneline yapıştırabilirsiniz):" -ForegroundColor Yellow
+    Write-Host \$jsonBody -ForegroundColor Cyan
+    try {
+        Set-Clipboard -Value \$jsonBody
+        Write-Host "(JSON verisi panonuza otomatik kopyalandı!)" -ForegroundColor Green
+    } catch {}
+}
+
+Write-Host ""
+Write-Host "Pencere 5 saniye içinde kapanacaktır..." -ForegroundColor Gray
+Start-Sleep -Seconds 5
+`;
+  }
+
   const isServer = targetType === 'server';
 
   if (isServer) {
@@ -56,19 +215,26 @@ $disks = Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach
 }
 $diskInfo = if ($disks) { ($disks -join " + ") } else { "RAID Disk Dizisi" }
 
-Write-Host "[4/5] 🌐 Ağ adaptörleri ve IP/MAC adresleri okunuyor..." -ForegroundColor Gray
-$ethIp = ""
-$ethMac = ""
+Write-Host "[4/5] 🌐 Ağ adaptörleri ve 4 Port Ethernet bilgileri okunuyor..." -ForegroundColor Gray
+$ethAdapters = @()
 try {
-    $adapters = Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True" -ErrorAction SilentlyContinue
-    foreach ($a in $adapters) {
+    $rawAdapters = Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True" -ErrorAction SilentlyContinue
+    foreach ($a in $rawAdapters) {
         $ipv4 = ($a.IPAddress | Where-Object { $_ -match '^\\d+\\.\\d+\\.\\d+\\.\\d+$' } | Select-Object -First 1)
-        if ($ipv4 -and -not $ethIp) {
-            $ethIp = $ipv4
-            $ethMac = $a.MACAddress
+        if ($ipv4) {
+            $ethAdapters += [PSCustomObject]@{ IP = $ipv4; MAC = $a.MACAddress }
         }
     }
 } catch {}
+
+$ethIp = if ($ethAdapters.Count -ge 1) { $ethAdapters[0].IP } else { "" }
+$ethMac = if ($ethAdapters.Count -ge 1) { $ethAdapters[0].MAC } else { "" }
+$ethIp2 = if ($ethAdapters.Count -ge 2) { $ethAdapters[1].IP } else { "" }
+$ethMac2 = if ($ethAdapters.Count -ge 2) { $ethAdapters[1].MAC } else { "" }
+$ethIp3 = if ($ethAdapters.Count -ge 3) { $ethAdapters[2].IP } else { "" }
+$ethMac3 = if ($ethAdapters.Count -ge 3) { $ethAdapters[2].MAC } else { "" }
+$ethIp4 = if ($ethAdapters.Count -ge 4) { $ethAdapters[3].IP } else { "" }
+$ethMac4 = if ($ethAdapters.Count -ge 4) { $ethAdapters[3].MAC } else { "" }
 
 $osObj = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
 $osVersion = if ($osObj.Caption) { $osObj.Caption.Trim() } else { "Windows Server" }
@@ -88,6 +254,12 @@ $data = @{
     disk_info     = $diskInfo
     ip_address    = $ethIp
     mac_address   = $ethMac
+    ip_address_2  = $ethIp2
+    mac_address_2 = $ethMac2
+    ip_address_3  = $ethIp3
+    mac_address_3 = $ethMac3
+    ip_address_4  = $ethIp4
+    mac_address_4 = $ethMac4
     location      = "Sistem Odası / Rack Kabinet"
     status        = "Aktif"
     notes         = $notes
@@ -110,7 +282,10 @@ try {
     Write-Host "   Bellek     : $ramInfo" -ForegroundColor White
     Write-Host "   Müşteri    : ${safeCustomerName}" -ForegroundColor Yellow
     Write-Host "   Şube       : ${safeBranch}" -ForegroundColor White
-    Write-Host "   IP Adresi  : $ethIp" -ForegroundColor White
+    Write-Host "   Ethernet 1 : $ethIp ($ethMac)" -ForegroundColor White
+    if ($ethIp2) { Write-Host "   Ethernet 2 : $ethIp2 ($ethMac2)" -ForegroundColor White }
+    if ($ethIp3) { Write-Host "   Ethernet 3 : $ethIp3 ($ethMac3)" -ForegroundColor White }
+    if ($ethIp4) { Write-Host "   Ethernet 4 : $ethIp4 ($ethMac4)" -ForegroundColor White }
     if ($serial) {
         Write-Host "   Seri No    : $serial" -ForegroundColor Cyan
     }
@@ -327,9 +502,9 @@ Start-Sleep -Seconds 5
 
 function generateCollectorBat({ customerId, customerName, branchName, serverUrl, targetType = 'computer' }) {
   const safeBranch = encodeURIComponent(branchName || 'Merkez Ofis');
-  const typeParam = targetType === 'server' ? '&t=server' : '';
+  const typeParam = targetType === 'server' ? '&t=server' : (targetType === 'vm' ? '&t=vm' : '');
   const scriptUrl = `${serverUrl.replace(/\/+$/, '')}/api/agent/collector.ps1?c=${customerId}&b=${safeBranch}${typeParam}`;
-  const label = targetType === 'server' ? 'Sunucu' : 'Kullanici PC';
+  const label = targetType === 'server' ? 'Sunucu' : (targetType === 'vm' ? 'Sanal Makine (VM)' : 'Kullanici PC');
 
   return `@echo off
 chcp 65001 >nul
@@ -511,6 +686,12 @@ function handleRegisterServer(db, payload) {
     disk_info = '',
     ip_address = '',
     mac_address = '',
+    ip_address_2 = '',
+    mac_address_2 = '',
+    ip_address_3 = '',
+    mac_address_3 = '',
+    ip_address_4 = '',
+    mac_address_4 = '',
     management_ip = '',
     management_user = '',
     management_password = '',
@@ -558,6 +739,12 @@ function handleRegisterServer(db, payload) {
         disk_info = COALESCE(NULLIF(?, ''), disk_info),
         ip_address = COALESCE(NULLIF(?, ''), ip_address),
         mac_address = COALESCE(NULLIF(?, ''), mac_address),
+        ip_address_2 = COALESCE(NULLIF(?, ''), ip_address_2),
+        mac_address_2 = COALESCE(NULLIF(?, ''), mac_address_2),
+        ip_address_3 = COALESCE(NULLIF(?, ''), ip_address_3),
+        mac_address_3 = COALESCE(NULLIF(?, ''), mac_address_3),
+        ip_address_4 = COALESCE(NULLIF(?, ''), ip_address_4),
+        mac_address_4 = COALESCE(NULLIF(?, ''), mac_address_4),
         branch_name = COALESCE(NULLIF(?, ''), branch_name),
         notes = COALESCE(NULLIF(?, ''), notes),
         updated_at = CURRENT_TIMESTAMP
@@ -574,6 +761,12 @@ function handleRegisterServer(db, payload) {
       disk_info.trim(),
       ip_address.trim(),
       mac_address.trim().toUpperCase(),
+      ip_address_2.trim(),
+      mac_address_2.trim().toUpperCase(),
+      ip_address_3.trim(),
+      mac_address_3.trim().toUpperCase(),
+      ip_address_4.trim(),
+      mac_address_4.trim().toUpperCase(),
       branch_name || 'Merkez Ofis',
       notes || existing.notes,
       existing.id
@@ -590,11 +783,15 @@ function handleRegisterServer(db, payload) {
     const insertStmt = db.prepare(`
       INSERT INTO physical_servers (
         customer_id, server_name, brand, model, serial_number,
-        cpu_info, ram_info, disk_info, ip_address, mac_address,
+        cpu_info, ram_info, disk_info,
+        ip_address, mac_address,
+        ip_address_2, mac_address_2,
+        ip_address_3, mac_address_3,
+        ip_address_4, mac_address_4,
         management_ip, management_user, management_password,
         local_admin_user, local_admin_password,
         branch_name, location, status, notes, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
 
     const result = insertStmt.run(
@@ -608,6 +805,12 @@ function handleRegisterServer(db, payload) {
       disk_info.trim(),
       ip_address.trim(),
       mac_address.trim().toUpperCase(),
+      ip_address_2.trim(),
+      mac_address_2.trim().toUpperCase(),
+      ip_address_3.trim(),
+      mac_address_3.trim().toUpperCase(),
+      ip_address_4.trim(),
+      mac_address_4.trim().toUpperCase(),
       management_ip || '',
       management_user || '',
       management_password || '',
@@ -629,10 +832,138 @@ function handleRegisterServer(db, payload) {
   }
 }
 
+
+function handleRegisterVM(db, payload) {
+  const {
+    customer_id,
+    vm_name,
+    hypervisor = 'Microsoft Hyper-V',
+    role_description = '',
+    vcpu = '',
+    ram = '',
+    disk = '',
+    ip_address = '',
+    mac_address = '',
+    os_version = '',
+    os_license_key = '',
+    office_version = '',
+    office_license_key = '',
+    local_admin_user = '',
+    local_admin_password = '',
+    physical_server_id = null,
+    status = 'Aktif',
+    notes = ''
+  } = payload;
+
+  if (!customer_id || !vm_name) {
+    throw new Error('Müşteri Kimliği (customer_id) ve Sanal Makine Adı (vm_name) zorunludur.');
+  }
+
+  const customer = db.prepare('SELECT id, name FROM customers WHERE id = ?').get(customer_id);
+  if (!customer) {
+    throw new Error(`Müşteri bulunamadı (ID: ${customer_id})`);
+  }
+
+  let existing = db.prepare(`
+    SELECT * FROM virtual_machines 
+    WHERE customer_id = ? AND LOWER(vm_name) = LOWER(?)
+  `).get(customer_id, vm_name.trim());
+
+  if (existing) {
+    const updateStmt = db.prepare(`
+      UPDATE virtual_machines SET
+        vm_name = ?,
+        hypervisor = COALESCE(NULLIF(?, ''), hypervisor),
+        role_description = COALESCE(NULLIF(?, ''), role_description),
+        vcpu = COALESCE(NULLIF(?, ''), vcpu),
+        ram = COALESCE(NULLIF(?, ''), ram),
+        disk = COALESCE(NULLIF(?, ''), disk),
+        ip_address = COALESCE(NULLIF(?, ''), ip_address),
+        mac_address = COALESCE(NULLIF(?, ''), mac_address),
+        os_version = COALESCE(NULLIF(?, ''), os_version),
+        os_license_key = COALESCE(NULLIF(?, ''), os_license_key),
+        notes = COALESCE(NULLIF(?, ''), notes),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+
+    updateStmt.run(
+      vm_name.trim(),
+      hypervisor.trim(),
+      role_description.trim(),
+      vcpu.trim(),
+      ram.trim(),
+      disk.trim(),
+      ip_address.trim(),
+      mac_address.trim().toUpperCase(),
+      os_version.trim(),
+      os_license_key.trim(),
+      notes || existing.notes,
+      existing.id
+    );
+
+    const updated = db.prepare('SELECT * FROM virtual_machines WHERE id = ?').get(existing.id);
+    return {
+      success: true,
+      action: 'updated',
+      vm: updated,
+      message: `'${vm_name}' sanal makinesi başarıyla güncellendi (${customer.name})`
+    };
+  } else {
+    // Optionally resolve physical server if customer has only 1 server
+    let resolvedServerId = physical_server_id;
+    if (!resolvedServerId) {
+      const servers = db.prepare('SELECT id FROM physical_servers WHERE customer_id = ?').all(customer_id);
+      if (servers.length === 1) {
+        resolvedServerId = servers[0].id;
+      }
+    }
+
+    const insertStmt = db.prepare(`
+      INSERT INTO virtual_machines (
+        customer_id, physical_server_id, vm_name, hypervisor, role_description,
+        vcpu, ram, disk, ip_address, mac_address, os_version, os_license_key,
+        office_version, office_license_key, local_admin_user, local_admin_password,
+        status, notes, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `);
+
+    const result = insertStmt.run(
+      customer_id,
+      resolvedServerId || null,
+      vm_name.trim(),
+      hypervisor.trim(),
+      role_description.trim(),
+      vcpu.trim(),
+      ram.trim(),
+      disk.trim(),
+      ip_address.trim(),
+      mac_address.trim().toUpperCase(),
+      os_version.trim(),
+      os_license_key.trim(),
+      office_version || '',
+      office_license_key || '',
+      local_admin_user || '',
+      local_admin_password || '',
+      status || 'Aktif',
+      notes || `PowerShell Ajanı ile otomatik kaydedildi (${new Date().toLocaleString('tr-TR')})`
+    );
+
+    const created = db.prepare('SELECT * FROM virtual_machines WHERE id = ?').get(result.lastInsertRowid);
+    return {
+      success: true,
+      action: 'created',
+      vm: created,
+      message: `'${vm_name}' sanal makinesi başarıyla envantere eklendi (${customer.name})`
+    };
+  }
+}
+
 module.exports = {
   generateCollectorScript,
   generateCollectorBat,
   handleRegisterComputer,
-  handleRegisterServer
+  handleRegisterServer,
+  handleRegisterVM
 };
 

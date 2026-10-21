@@ -1697,6 +1697,8 @@ export default function App() {
 
                 {activeTab === 'vms' && (
                   <VirtualMachinesTab
+                    customer={customerData}
+                    branches={customerBranches}
                     vms={customerData.virtual_machines || []}
                     physicalServers={customerData.physical_servers || []}
                     canEdit={checkPermission(currentUser, 'edit')}
@@ -1710,6 +1712,7 @@ export default function App() {
                       setIsVMModalOpen(true);
                     }}
                     onDelete={handleDeleteVM}
+                    onReloadCustomer={() => customerData && loadCustomerDetails(customerData.id)}
                   />
                 )}
 

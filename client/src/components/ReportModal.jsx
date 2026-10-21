@@ -747,7 +747,12 @@ export default function ReportModal({ isOpen, onClose, customer }) {
                         </td>
                         <td className="p-2 border-r border-slate-200">{s.brand} {s.model} {s.serial_number && `(SN: ${s.serial_number})`}</td>
                         <td className="p-2 font-mono text-[11px] border-r border-slate-200">{s.cpu_info} | {s.ram_info} | {s.disk_info}</td>
-                        <td className="p-2 font-mono border-r border-slate-200">{s.ip_address} {s.mac_address && `(${s.mac_address})`}</td>
+                        <td className="p-2 font-mono text-[11px] border-r border-slate-200">
+                          <div><span className="font-bold text-slate-700">ETH1:</span> {s.ip_address || '-'} {s.mac_address && `(${s.mac_address})`}</div>
+                          {s.ip_address_2 && <div><span className="font-bold text-slate-700">ETH2:</span> {s.ip_address_2} {s.mac_address_2 && `(${s.mac_address_2})`}</div>}
+                          {s.ip_address_3 && <div><span className="font-bold text-slate-700">ETH3:</span> {s.ip_address_3} {s.mac_address_3 && `(${s.mac_address_3})`}</div>}
+                          {s.ip_address_4 && <div><span className="font-bold text-slate-700">ETH4:</span> {s.ip_address_4} {s.mac_address_4 && `(${s.mac_address_4})`}</div>}
+                        </td>
                         <td className="p-2 font-mono text-[11px] border-r border-slate-200">
                           {s.local_admin_user || s.local_admin_password ? (
                             <div>

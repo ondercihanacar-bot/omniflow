@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Laptop, Zap, Copy, Check, Download, ShieldCheck,
   Terminal, FileCode, WifiOff, Sparkles, Building2, CheckCircle2,
-  ExternalLink, Info, AlertCircle, Server, Network, Globe
+  ExternalLink, Info, AlertCircle, Server, Network, Globe, Cloud
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import { api } from '../api';
@@ -64,7 +64,8 @@ export default function ComputerCollectorModal({
 
   const branchParam = encodeURIComponent(selectedBranch);
   const isServer = targetType === 'server';
-  const typeParam = isServer ? '&t=server' : '';
+  const isVM = targetType === 'vm';
+  const typeParam = isServer ? '&t=server' : (isVM ? '&t=vm' : '');
 
   // TLS 1.2 + SSL Bypass prefix (fixes "SSL/TLS güvenli kanalı oluşturulamadı" on Windows Server 2016 / PowerShell 5.1)
   const tlsFixPrefix = `[Net.ServicePointManager]::SecurityProtocol = 3072 -bor 768 -bor 192; [Net.ServicePointManager]::ServerCertificateValidationCallback = {$true};`;
@@ -76,9 +77,11 @@ export default function ComputerCollectorModal({
   const psCommand = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${tlsFixPrefix} irm '${baseUrl}/api/agent/collector.ps1?c=${customer.id}&b=${branchParam}${typeParam}' | iex"`;
 
   // Standalone Direct PowerShell command (runs offline, reads CIM directly, copies JSON to clipboard)
-  const standaloneCommand = isServer
-    ? `\$c=\$env:COMPUTERNAME;\$cs=Get-CimInstance Win32_ComputerSystem -EA 0;\$b=if(\$cs.Manufacturer){\$cs.Manufacturer.Trim()}else{'OEM'};\$m=if(\$cs.Model){\$cs.Model.Trim()}else{'Server'};\$s=(Get-CimInstance Win32_BIOS -EA 0).SerialNumber;\$cpus=Get-CimInstance Win32_Processor -EA 0;\$cc=(\$cpus|Measure-Object).Count;\$fc=(\$cpus|Select-Object -First 1);\$cm=if(\$fc.Name){\$fc.Name.Trim()}else{'Xeon'};\$mult=if(\$cc -gt 0){\$cc}else{1};\$cores=if(\$fc.NumberOfCores){\$fc.NumberOfCores*\$mult}else{0};\$ci=if(\$cc -gt 1){"\$cc x \$cm (\$cores Çekirdek)"}else{"\$cm (\$cores Çekirdek)"};\$rmBytes=(Get-CimInstance Win32_PhysicalMemory -EA 0|Measure-Object -Property Capacity -Sum).Sum;\$ri=if(\$rmBytes -gt 0){"\$([math]::Round(\$rmBytes/1GB)) GB RAM"}else{"32 GB RAM"};\$disks=Get-CimInstance Win32_DiskDrive -EA 0|ForEach-Object{"\$(\$_.Model) (\$([math]::Round(\$_.Size/1GB)) GB)"};\$dk=if(\$disks){(\$disks -join ' + ')}else{'RAID'};\$ethIp='';\$ethMac='';try{\$ad=Get-CimInstance Win32_NetworkAdapterConfiguration -Filter 'IPEnabled=True' -EA 0;foreach(\$a in \$ad){\$ipv4=(\$a.IPAddress|Where-Object{\$_ -match '^\\d+\\.\\d+\\.\\d+\\.\\d+$'}|Select-Object -First 1);if(\$ipv4 -and -not \$ethIp){\$ethIp=\$ipv4;\$ethMac=\$a.MACAddress}}}catch{};\$os=(Get-CimInstance Win32_OperatingSystem -EA 0).Caption;\$j=@{customer_id=${customer.id};branch_name='${selectedBranch}';server_name=\$c;brand=\$b;model=\$m;serial_number=\$s;cpu_info=\$ci;ram_info=\$ri;disk_info=\$dk;ip_address=\$ethIp;mac_address=\$ethMac;location='Sistem Odası';status='Aktif';notes="İşletim Sistemi: \$os"}|ConvertTo-Json -Compress;Clear-Host;Write-Host '==========================================' -ForegroundColor Green;Write-Host '  OMNIFlow Sunucu Bilgileri Toplandı!' -ForegroundColor Yellow;Write-Host '==========================================' -ForegroundColor Green;Write-Host "Sunucu: \$c (\$b \$m)" -ForegroundColor White;Write-Host "İşlemci: \$ci" -ForegroundColor White;Write-Host "Bellek: \$ri | Disk: \$dk" -ForegroundColor White;Write-Host "IP: \$ethIp | Seri No: \$s" -ForegroundColor White;Write-Host '==========================================' -ForegroundColor Green;Write-Host \$j -ForegroundColor Cyan;try{Set-Clipboard -Value \$j;Write-Host '\`n✅ Bilgiler panoya kopyalandı! OMNIFlow ekranında 3. Çevrimdışı Yapıştır sekmesine yapıştırıp kaydedin.' -ForegroundColor Green}catch{}`
-    : `\$c=\$env:COMPUTERNAME;\$u=\$env:USERNAME;\$cs=Get-CimInstance Win32_ComputerSystem -EA 0;\$b=if(\$cs.Manufacturer){\$cs.Manufacturer.Trim()}else{'OEM'};\$m=if(\$cs.Model){\$cs.Model.Trim()}else{'PC'};\$s=(Get-CimInstance Win32_BIOS -EA 0).SerialNumber;\$cpu=(Get-CimInstance Win32_Processor -EA 0|Select-Object -First 1).Name;\$rmBytes=(Get-CimInstance Win32_PhysicalMemory -EA 0|Measure-Object Capacity -Sum).Sum;\$ri=if(\$rmBytes -gt 0){"\$([math]::Round(\$rmBytes/1GB)) GB RAM"}else{''};\$disks=Get-CimInstance Win32_DiskDrive -EA 0|ForEach-Object{"\$(\$_.Model) (\$([math]::Round(\$_.Size/1GB)) GB)"};\$dk=if(\$disks){(\$disks -join ' + ')}else{''};\$specs=@(\$cpu,\$ri,\$dk)|Where-Object{\$_}|join ' / ';\$bat=Get-CimInstance Win32_Battery -EA 0;\$dtype=if(\$bat){'Laptop'}else{'Masaüstü'};\$os=(Get-CimInstance Win32_OperatingSystem -EA 0).Caption;\$key='';try{\$key=(Get-CimInstance -Query 'select OA3xOriginalProductKey from SoftwareLicensingService' -EA 0).OA3xOriginalProductKey}catch{};\$ad=Get-CimInstance Win32_NetworkAdapterConfiguration -Filter 'IPEnabled=True' -EA 0|Select-Object -First 1;\$ip=(\$ad.IPAddress|Where-Object{\$_ -match '^\\d+\\.\\d+\\.\\d+\\.\\d+$'}|Select-Object -First 1);\$mac=\$ad.MACAddress;\$j=@{customer_id=${customer.id};branch_name='${selectedBranch}';computer_name=\$c;assigned_user=\$u;brand=\$b;model=\$m;serial_number=\$s;hardware_specs=\$specs;os_version=\$os;os_license_key=\$key;device_type=\$dtype;ethernet_ip=\$ip;ethernet_mac=\$mac}|ConvertTo-Json -Compress;Clear-Host;Write-Host '==========================================' -ForegroundColor Green;Write-Host '  OMNIFlow Bilgisayar Bilgileri Toplandı!' -ForegroundColor Yellow;Write-Host '==========================================' -ForegroundColor Green;Write-Host \$j -ForegroundColor Cyan;try{Set-Clipboard -Value \$j;Write-Host '\`n✅ Bilgiler panoya kopyalandı! OMNIFlow 3. Çevrimdışı Yapıştır sekmesine yapıştırıp kaydedin.' -ForegroundColor Green}catch{}`;
+  const standaloneCommand = isVM
+    ? `\$c=\$env:COMPUTERNAME;\$cs=Get-CimInstance Win32_ComputerSystem -EA 0;\$mfg=if(\$cs.Manufacturer){\$cs.Manufacturer.Trim()}else{''};\$mod=if(\$cs.Model){\$cs.Model.Trim()}else{''};\$hyp='Microsoft Hyper-V';if(\$mod -match 'VMware' -or \$mfg -match 'VMware'){\$hyp='VMware ESXi'}elseif(\$mod -match 'KVM|QEMU' -or \$mfg -match 'QEMU'){\$hyp='Proxmox VE / KVM'}elseif(\$mod -match 'VirtualBox'){\$hyp='Oracle VirtualBox'};\$cpus=Get-CimInstance Win32_Processor -EA 0;\$tl=(\$cpus|Measure-Object -Property NumberOfLogicalProcessors -Sum).Sum;\$tc=(\$cpus|Measure-Object -Property NumberOfCores -Sum).Sum;\$vcpu=if(\$tl -gt 0){"\$tl vCPU"}elseif(\$tc -gt 0){"\$tc vCPU"}else{'4 vCPU'};\$rmBytes=(Get-CimInstance Win32_PhysicalMemory -EA 0|Measure-Object -Property Capacity -Sum).Sum;if(-not \$rmBytes -or \$rmBytes -le 0){try{\$rmBytes=(Get-CimInstance Win32_OperatingSystem -EA 0).TotalVisibleMemorySize*1KB}catch{}};\$ri=if(\$rmBytes -gt 0){"\$([math]::Round(\$rmBytes/1GB)) GB RAM"}else{'8 GB RAM'};\$disks=Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' -EA 0|ForEach-Object{"\$(\$_.DeviceID) (\$([math]::Round(\$_.Size/1GB)) GB)"};\$dk=if(\$disks){(\$disks -join ' + ')}else{'C: 100 GB'};\$ethIp='';\$ethMac='';try{\$ad=Get-CimInstance Win32_NetworkAdapterConfiguration -Filter 'IPEnabled=True' -EA 0;foreach(\$a in \$ad){\$ipv4=(\$a.IPAddress|Where-Object{\$_ -match '^\\d+\\.\\d+\\.\\d+\\.\\d+$'}|Select-Object -First 1);if(\$ipv4 -and -not \$ethIp){\$ethIp=\$ipv4;\$ethMac=\$a.MACAddress}}}catch{};\$os=(Get-CimInstance Win32_OperatingSystem -EA 0).Caption;\$key='';try{\$key=(Get-CimInstance -Query 'select OA3xOriginalProductKey from SoftwareLicensingService' -EA 0).OA3xOriginalProductKey}catch{};\$roles=@();try{\$features=Get-WindowsFeature -EA 0|Where-Object{\$_.Installed -eq \$true};foreach(\$f in \$features){if(\$f.Name -eq 'AD-Domain-Services'){\$roles+='Active Directory (DC)'}elseif(\$f.Name -eq 'DNS'){\$roles+='DNS'}elseif(\$f.Name -eq 'DHCP'){\$roles+='DHCP'}elseif(\$f.Name -eq 'Web-Server'){\$roles+='IIS Web'}elseif(\$f.Name -eq 'File-Services'){\$roles+='File Server'}elseif(\$f.Name -eq 'Remote-Desktop-Services'){\$roles+='RDS'}}}catch{};\$rdesc=if(\$roles.Count -gt 0){(\$roles -join ' / ')}else{'Uygulama / Veritabanı Sunucusu'};\$j=@{customer_id=${customer.id};vm_name=\$c;hypervisor=\$hyp;role_description=\$rdesc;vcpu=\$vcpu;ram=\$ri;disk=\$dk;ip_address=\$ethIp;mac_address=\$ethMac;os_version=\$os;os_license_key=\$key;status='Aktif';notes="İşletim Sistemi: \$os"}|ConvertTo-Json -Compress;Clear-Host;Write-Host '==========================================' -ForegroundColor Green;Write-Host '  OMNIFlow VM Bilgileri Toplandı!' -ForegroundColor Yellow;Write-Host '==========================================' -ForegroundColor Green;Write-Host "VM: \$c (\$hyp)" -ForegroundColor White;Write-Host "Rol: \$rdesc | vCPU: \$vcpu | RAM: \$ri" -ForegroundColor White;Write-Host "Disk: \$dk | IP: \$ethIp" -ForegroundColor White;Write-Host '==========================================' -ForegroundColor Green;Write-Host \$j -ForegroundColor Cyan;try{Set-Clipboard -Value \$j;Write-Host '\`n✅ Bilgiler panoya kopyalandı! OMNIFlow 3. Çevrimdışı Yapıştır sekmesine yapıştırıp kaydedin.' -ForegroundColor Green}catch{}`
+    : isServer
+    ? `\$c=\$env:COMPUTERNAME;\$cs=Get-CimInstance Win32_ComputerSystem -EA 0;\$b=if(\$cs.Manufacturer){\$cs.Manufacturer.Trim()}else{'OEM'};\$m=if(\$cs.Model){\$cs.Model.Trim()}else{'Server'};\$s=(Get-CimInstance Win32_BIOS -EA 0).SerialNumber;\$cpus=Get-CimInstance Win32_Processor -EA 0;\$cc=(\$cpus|Measure-Object).Count;\$fc=(\$cpus|Select-Object -First 1);\$cm=if(\$fc.Name){\$fc.Name.Trim()}else{'Xeon'};\$mult=if(\$cc -gt 0){\$cc}else{1};\$cores=if(\$fc.NumberOfCores){\$fc.NumberOfCores*\$mult}else{0};\$ci=if(\$cc -gt 1){"\$cc x \$cm (\$cores Çekirdek)"}else{"\$cm (\$cores Çekirdek)"};\$rmBytes=(Get-CimInstance Win32_PhysicalMemory -EA 0|Measure-Object -Property Capacity -Sum).Sum;\$ri=if(\$rmBytes -gt 0){"\$([math]::Round(\$rmBytes/1GB)) GB RAM"}else{"32 GB RAM"};\$disks=Get-CimInstance Win32_DiskDrive -EA 0|ForEach-Object{"\$(\$_.Model) (\$([math]::Round(\$_.Size/1GB)) GB)"};\$dk=if(\$disks){(\$disks -join ' + ')}else{'RAID'};\$ethList=@();try{\$ad=Get-CimInstance Win32_NetworkAdapterConfiguration -Filter 'IPEnabled=True' -EA 0;foreach(\$a in \$ad){\$ipv4=(\$a.IPAddress|Where-Object{\$_ -match '^\\d+\\.\\d+\\.\\d+\\.\\d+$'}|Select-Object -First 1);if(\$ipv4){\$ethList+=[PSCustomObject]@{IP=\$ipv4;MAC=\$a.MACAddress}}}}catch{};\$ip1=if(\$ethList.Count -ge 1){\$ethList[0].IP}else{''};\$mac1=if(\$ethList.Count -ge 1){\$ethList[0].MAC}else{''};\$ip2=if(\$ethList.Count -ge 2){\$ethList[1].IP}else{''};\$mac2=if(\$ethList.Count -ge 2){\$ethList[1].MAC}else{''};\$ip3=if(\$ethList.Count -ge 3){\$ethList[2].IP}else{''};\$mac3=if(\$ethList.Count -ge 3){\$ethList[2].MAC}else{''};\$ip4=if(\$ethList.Count -ge 4){\$ethList[3].IP}else{''};\$mac4=if(\$ethList.Count -ge 4){\$ethList[3].MAC}else{''};\$os=(Get-CimInstance Win32_OperatingSystem -EA 0).Caption;\$j=@{customer_id=${customer.id};branch_name='${selectedBranch}';server_name=\$c;brand=\$b;model=\$m;serial_number=\$s;cpu_info=\$ci;ram_info=\$ri;disk_info=\$dk;ip_address=\$ip1;mac_address=\$mac1;ip_address_2=\$ip2;mac_address_2=\$mac2;ip_address_3=\$ip3;mac_address_3=\$mac3;ip_address_4=\$ip4;mac_address_4=\$mac4;location='Sistem Odası';status='Aktif';notes="İşletim Sistemi: \$os"}|ConvertTo-Json -Compress;Clear-Host;Write-Host '==========================================' -ForegroundColor Green;Write-Host '  OMNIFlow Sunucu Bilgileri Toplandı!' -ForegroundColor Yellow;Write-Host '==========================================' -ForegroundColor Green;Write-Host "Sunucu: \$c (\$b \$m)" -ForegroundColor White;Write-Host "İşlemci: \$ci" -ForegroundColor White;Write-Host "Bellek: \$ri | Disk: \$dk" -ForegroundColor White;Write-Host "ETH1: \$ip1 (\$mac1)" -ForegroundColor White;if(\$ip2){Write-Host "ETH2: \$ip2 (\$mac2)" -ForegroundColor White};if(\$ip3){Write-Host "ETH3: \$ip3 (\$mac3)" -ForegroundColor White};if(\$ip4){Write-Host "ETH4: \$ip4 (\$mac4)" -ForegroundColor White};Write-Host '==========================================' -ForegroundColor Green;Write-Host \$j -ForegroundColor Cyan;try{Set-Clipboard -Value \$j;Write-Host '\`n✅ Bilgiler panoya kopyalandı! OMNIFlow ekranında 3. Çevrimdışı Yapıştır sekmesine yapıştırıp kaydedin.' -ForegroundColor Green}catch{}`
+    : `\$c=\$env:COMPUTERNAME;\$u=\$env:USERNAME;\$cs=Get-CimInstance Win32_ComputerSystem -EA 0;\$b=if(\$cs.Manufacturer){\$cs.Manufacturer.Trim()}else{'OEM'};\$m=if(\$cs.Model){\$cs.Model.Trim()}else{'PC'};\$s=(Get-CimInstance Win32_BIOS -EA 0).SerialNumber;\$cpu=(Get-CimInstance Win32_Processor -EA 0|Select-Object -First 1).Name;\$rmBytes=(Get-CimInstance Win32_PhysicalMemory -EA 0|Measure-Object Capacity -Sum).Sum;\$ri=if(\$rmBytes -gt 0){"\$([math]::Round(\$rmBytes/1GB)) GB RAM"}else{''};\$disks=Get-CimInstance Win32_DiskDrive -EA 0|ForEach-Object{"\$(\$_.Model) (\$([math]::Round(\$_.Size/1GB)) GB)"};\$dk=if(\$disks){(\$disks -join ' + ')}else{''};\$specs=@(\$cpu,\$ri,\$dk)|Where-Object{\$_}|join ' / ';\$bat=Get-CimInstance Win32_Battery -EA 0;\$dtype=if($bat){'Laptop'}else{'Masaüstü'};\$os=(Get-CimInstance Win32_OperatingSystem -EA 0).Caption;\$key='';try{\$key=(Get-CimInstance -Query 'select OA3xOriginalProductKey from SoftwareLicensingService' -EA 0).OA3xOriginalProductKey}catch{};\$ad=Get-CimInstance Win32_NetworkAdapterConfiguration -Filter 'IPEnabled=True' -EA 0|Select-Object -First 1;\$ip=(\$ad.IPAddress|Where-Object{\$_ -match '^\\d+\\.\\d+\\.\\d+\\.\\d+$'}|Select-Object -First 1);\$mac=\$ad.MACAddress;\$j=@{customer_id=${customer.id};branch_name='${selectedBranch}';computer_name=\$c;assigned_user=\$u;brand=\$b;model=\$m;serial_number=\$s;hardware_specs=\$specs;os_version=\$os;os_license_key=\$key;device_type=\$dtype;ethernet_ip=\$ip;ethernet_mac=\$mac}|ConvertTo-Json -Compress;Clear-Host;Write-Host '==========================================' -ForegroundColor Green;Write-Host '  OMNIFlow Bilgisayar Bilgileri Toplandı!' -ForegroundColor Yellow;Write-Host '==========================================' -ForegroundColor Green;Write-Host \$j -ForegroundColor Cyan;try{Set-Clipboard -Value \$j;Write-Host '\`n✅ Bilgiler panoya kopyalandı! OMNIFlow 3. Çevrimdışı Yapıştır sekmesine yapıştırıp kaydedin.' -ForegroundColor Green}catch{}`;
 
   const downloadUrl = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&server_url=${encodeURIComponent(baseUrl)}&format=bat`;
   const downloadPs1Url = `${baseUrl}/api/agent/download/${customer.id}?b=${branchParam}${typeParam}&server_url=${encodeURIComponent(baseUrl)}&format=ps1`;
@@ -95,19 +98,22 @@ export default function ComputerCollectorModal({
 
       // Try saving via standard authenticated API first
       let result;
-      if (isServer) {
+      if (isVM) {
+        result = await api.createVM(parsed);
+      } else if (isServer) {
         result = await api.createServer(parsed);
       } else {
         result = await api.createComputer(parsed);
       }
 
-      alert(`✅ Başarılı: ${isServer ? 'Fiziki Sunucu envantere kaydedildi!' : 'Kullanıcı PC envantere kaydedildi!'} (${customer.name})`);
+      const entityName = isVM ? 'Sanal Makine (VM)' : (isServer ? 'Fiziki Sunucu' : 'Kullanıcı PC');
+      alert(`✅ Başarılı: ${entityName} envantere kaydedildi! (${customer.name})`);
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
       // Fallback to agent endpoint
       try {
-        const endpoint = isServer ? '/api/agent/register-server' : '/api/agent/register-computer';
+        const endpoint = isVM ? '/api/agent/register-vm' : (isServer ? '/api/agent/register-server' : '/api/agent/register-computer');
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -136,17 +142,21 @@ export default function ComputerCollectorModal({
         <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/40 shrink-0">
           <div className="flex items-center gap-3">
             <div className={`p-2.5 rounded-xl border ${
-              isServer
+              isVM
+                ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                : isServer
                 ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
                 : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
             }`}>
-              {isServer ? <Server className="w-5 h-5 fill-indigo-400/20" /> : <Zap className="w-5 h-5 fill-amber-400/20" />}
+              {isVM ? <Cloud className="w-5 h-5 fill-purple-400/20" /> : isServer ? <Server className="w-5 h-5 fill-indigo-400/20" /> : <Zap className="w-5 h-5 fill-amber-400/20" />}
             </div>
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>{isServer ? 'Otomatik Fiziki Sunucu Toplayıcı' : 'Otomatik Donanım & Lisans Toplayıcı'}</span>
+                <span>{isVM ? 'Otomatik Sanal Makine (VM) Toplayıcı' : isServer ? 'Otomatik Fiziki Sunucu Toplayıcı' : 'Otomatik Donanım & Lisans Toplayıcı'}</span>
                 <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border ${
-                  isServer
+                  isVM
+                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                    : isServer
                     ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
                     : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
                 }`}>
@@ -154,8 +164,10 @@ export default function ComputerCollectorModal({
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                {isServer
-                  ? 'Hedef sunucuda kurulum yapmadan donanım, CPU, RAM, Disk ve IP/MAC bilgilerini saniyeler içinde çekin.'
+                {isVM
+                  ? 'Sanal makinede kurulum yapmadan Hypervisor (Hyper-V / VMware / Proxmox), vCPU, RAM, Disk ve IP bilgilerini saniyeler içinde çekin.'
+                  : isServer
+                  ? 'Hedef sunucuda kurulum yapmadan donanım, CPU, RAM, Disk, 4-Port Ethernet ve IP/MAC bilgilerini saniyeler içinde çekin.'
                   : 'Hedef bilgisayarda hiçbir program kurmadan tüm özellikleri 2 saniyede çekin.'}
               </p>
             </div>
@@ -177,13 +189,13 @@ export default function ComputerCollectorModal({
             </span>
           </div>
 
-          {/* Mode Switch: PC vs Sunucu */}
+          {/* Mode Switch: PC vs Sunucu vs VM */}
           <div className="flex items-center bg-slate-900 p-1 rounded-lg border border-slate-800 shrink-0">
             <button
               type="button"
               onClick={() => setTargetType('computer')}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                !isServer
+                targetType === 'computer'
                   ? 'bg-amber-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
@@ -195,13 +207,25 @@ export default function ComputerCollectorModal({
               type="button"
               onClick={() => setTargetType('server')}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                isServer
+                targetType === 'server'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
               <Server className="w-3.5 h-3.5" />
               <span>Fiziki Sunucu</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTargetType('vm')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                targetType === 'vm'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Cloud className="w-3.5 h-3.5" />
+              <span>Sanal Makine (VM)</span>
             </button>
           </div>
 
@@ -356,14 +380,14 @@ export default function ComputerCollectorModal({
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>{isServer ? 'PowerShell Konsolu Komutu (Mavi Ekran):' : 'Kullanıcı PC PowerShell Komutu:'}</span>
+                      <span>{isVM ? 'VM PowerShell Komutu:' : isServer ? 'PowerShell Konsolu Komutu (Mavi Ekran):' : 'Kullanıcı PC PowerShell Komutu:'}</span>
                     </span>
                     <span className="text-[11px] text-emerald-400 font-medium">Tek tıkla kopyalayın</span>
                   </label>
                   <div className={`bg-slate-950 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-inner border ${
-                    isServer ? 'border-indigo-500/50' : 'border-amber-500/50'
+                    isVM ? 'border-purple-500/50' : isServer ? 'border-indigo-500/50' : 'border-amber-500/50'
                   }`}>
-                    <code className={`text-xs font-mono select-all break-all ${isServer ? 'text-indigo-200' : 'text-amber-200'}`}>
+                    <code className={`text-xs font-mono select-all break-all ${isVM ? 'text-purple-200' : isServer ? 'text-indigo-200' : 'text-amber-200'}`}>
                       {shortCommand}
                     </code>
                     <CopyButton text={shortCommand} title="PowerShell Komutunu Kopyala" />
@@ -472,7 +496,7 @@ export default function ComputerCollectorModal({
                     </div>
                     <div>
                       <div className="text-xs font-bold text-white group-hover:text-blue-300">
-                        {isServer ? 'Sunucu_Toplayici.bat İndir' : 'Toplayici.bat İndir'}
+                        {isVM ? 'VM_Toplayici.bat İndir' : isServer ? 'Sunucu_Toplayici.bat İndir' : 'Toplayici.bat İndir'}
                       </div>
                       <div className="text-[11px] text-slate-400">Çift tıklayarak anında çalıştırın</div>
                     </div>
@@ -493,7 +517,7 @@ export default function ComputerCollectorModal({
                     </div>
                     <div>
                       <div className="text-xs font-bold text-white group-hover:text-amber-300">
-                        {isServer ? 'Sunucu_Toplayici.ps1 İndir' : 'Toplayici.ps1 İndir'}
+                        {isVM ? 'VM_Toplayici.ps1 İndir' : isServer ? 'Sunucu_Toplayici.ps1 İndir' : 'Toplayici.ps1 İndir'}
                       </div>
                       <div className="text-[11px] text-slate-400">Ham PowerShell scripti</div>
                     </div>
@@ -528,8 +552,10 @@ export default function ComputerCollectorModal({
                   value={offlineJson}
                   onChange={(e) => setOfflineJson(e.target.value)}
                   placeholder={
-                    isServer
-                      ? `{\n  "server_name": "SRV-DC01",\n  "brand": "Dell Inc.",\n  "model": "PowerEdge R740",\n  "serial_number": "8X7K9Z2",\n  "cpu_info": "2 x Intel Xeon Silver 4210R",\n  "ram_info": "64 GB RAM",\n  "disk_info": "PERC H730P (4x 960GB SSD)",\n  "ip_address": "192.168.1.10"\n}`
+                    isVM
+                      ? `{\n  "vm_name": "VM-SQL01",\n  "hypervisor": "Microsoft Hyper-V",\n  "role_description": "SQL Server & Veritabanı",\n  "vcpu": "8 vCPU",\n  "ram": "32 GB RAM",\n  "disk": "C: 100 GB + D: 500 GB",\n  "ip_address": "192.168.2.50"\n}`
+                      : isServer
+                      ? `{\n  "server_name": "SRV-DC01",\n  "brand": "Dell Inc.",\n  "model": "PowerEdge R740",\n  "serial_number": "8X7K9Z2",\n  "cpu_info": "2 x Intel Xeon Silver 4210R",\n  "ram_info": "64 GB RAM",\n  "disk_info": "PERC H730P (4x 960GB SSD)",\n  "ip_address": "192.168.2.253",\n  "ip_address_2": "192.168.2.254"\n}`
                       : `{\n  "computer_name": "PC-MUH-01",\n  "brand": "Lenovo",\n  "model": "ThinkCentre",\n  "serial_number": "MJ0DK198",\n  ...\n}`
                   }
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-emerald-500"

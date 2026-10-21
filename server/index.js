@@ -1265,7 +1265,11 @@ app.post('/api/physical-servers', (req, res) => {
   try {
     const {
       customer_id, server_name, brand, model, serial_number, cpu_info, ram_info, disk_info,
-      ip_address, mac_address, management_ip, management_user, management_password,
+      ip_address, mac_address,
+      ip_address_2, mac_address_2,
+      ip_address_3, mac_address_3,
+      ip_address_4, mac_address_4,
+      management_ip, management_user, management_password,
       local_admin_user, local_admin_password,
       branch_name, location, status, notes
     } = req.body;
@@ -1277,15 +1281,23 @@ app.post('/api/physical-servers', (req, res) => {
     const stmt = db.prepare(`
       INSERT INTO physical_servers (
         customer_id, server_name, brand, model, serial_number, cpu_info, ram_info, disk_info,
-        ip_address, mac_address, management_ip, management_user, management_password,
+        ip_address, mac_address,
+        ip_address_2, mac_address_2,
+        ip_address_3, mac_address_3,
+        ip_address_4, mac_address_4,
+        management_ip, management_user, management_password,
         local_admin_user, local_admin_password,
         branch_name, location, status, notes, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
 
     const result = stmt.run(
       customer_id, server_name.trim(), brand || '', model || '', serial_number || '',
-      cpu_info || '', ram_info || '', disk_info || '', ip_address || '', mac_address || '',
+      cpu_info || '', ram_info || '', disk_info || '',
+      ip_address || '', mac_address || '',
+      ip_address_2 || '', mac_address_2 || '',
+      ip_address_3 || '', mac_address_3 || '',
+      ip_address_4 || '', mac_address_4 || '',
       management_ip || '', management_user || '', security.encryptSensitive(management_password || ''),
       local_admin_user || '', local_admin_password || '',
       branch_name || 'Merkez Ofis', location || '', status || 'Aktif', notes || ''
@@ -1302,7 +1314,11 @@ app.put('/api/physical-servers/:id', (req, res) => {
   try {
     const {
       server_name, brand, model, serial_number, cpu_info, ram_info, disk_info,
-      ip_address, mac_address, management_ip, management_user, management_password,
+      ip_address, mac_address,
+      ip_address_2, mac_address_2,
+      ip_address_3, mac_address_3,
+      ip_address_4, mac_address_4,
+      management_ip, management_user, management_password,
       local_admin_user, local_admin_password,
       branch_name, location, status, notes
     } = req.body;
@@ -1310,7 +1326,11 @@ app.put('/api/physical-servers/:id', (req, res) => {
     const stmt = db.prepare(`
       UPDATE physical_servers SET
         server_name = ?, brand = ?, model = ?, serial_number = ?, cpu_info = ?, ram_info = ?, disk_info = ?,
-        ip_address = ?, mac_address = ?, management_ip = ?, management_user = ?, management_password = ?,
+        ip_address = ?, mac_address = ?,
+        ip_address_2 = ?, mac_address_2 = ?,
+        ip_address_3 = ?, mac_address_3 = ?,
+        ip_address_4 = ?, mac_address_4 = ?,
+        management_ip = ?, management_user = ?, management_password = ?,
         local_admin_user = ?, local_admin_password = ?,
         branch_name = ?, location = ?, status = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
@@ -1318,7 +1338,11 @@ app.put('/api/physical-servers/:id', (req, res) => {
 
     stmt.run(
       server_name.trim(), brand || '', model || '', serial_number || '',
-      cpu_info || '', ram_info || '', disk_info || '', ip_address || '', mac_address || '',
+      cpu_info || '', ram_info || '', disk_info || '',
+      ip_address || '', mac_address || '',
+      ip_address_2 || '', mac_address_2 || '',
+      ip_address_3 || '', mac_address_3 || '',
+      ip_address_4 || '', mac_address_4 || '',
       management_ip || '', management_user || '', management_password || '',
       local_admin_user || '', local_admin_password || '',
       branch_name || 'Merkez Ofis', location || '', status || 'Aktif', notes || '', req.params.id
@@ -1529,7 +1553,7 @@ app.get('/api/agent/download/:customerId', (req, res) => {
     const serverUrl = server_url || `${proto}://${host}`;
 
     const safeName = (customer.name || 'Musteri').replace(/[^a-zA-Z0-9_\u00C0-\u017F]/g, '_');
-    const label = targetType === 'server' ? 'Sunucu' : 'PC';
+    const label = targetType === 'server' ? 'Sunucu' : (targetType === 'vm' ? 'VM' : 'PC');
 
     if (format === 'ps1') {
       const script = agentCollector.generateCollectorScript({
@@ -1577,6 +1601,17 @@ app.post('/api/agent/register-server', (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Agent register server error:', err.message);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// Register Virtual Machine (VM) from PowerShell Agent
+app.post('/api/agent/register-vm', (req, res) => {
+  try {
+    const result = agentCollector.handleRegisterVM(db, req.body);
+    res.json(result);
+  } catch (err) {
+    console.error('Agent register VM error:', err.message);
     res.status(400).json({ success: false, error: err.message });
   }
 });
