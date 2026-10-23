@@ -46,6 +46,15 @@
     margin: 8mm;
   }
 
+  /* Force exact colors, background fills, borders, and badges */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
   /* Force pure white background on html, body, and all wrappers */
   html,
   body,

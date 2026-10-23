@@ -228,8 +228,8 @@ export default function HandoverModal({
     const filename = `Zimmet_Tutanagi_${cleanUser}_${docNo || 'ZMT'}.pdf`;
 
     try {
-      // 1. Try Backend Chromium Vector PDF generation first
-      const htmlContent = reportElement.innerHTML;
+      // 1. Try Backend Chromium Vector PDF generation first with full styles
+      const htmlContent = reportElement.outerHTML;
       const blob = await api.generatePdf(htmlContent, filename);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -244,10 +244,10 @@ export default function HandoverModal({
       // 2. Client-side html2pdf fallback
       try {
         const opt = {
-          margin: [8, 8, 8, 8],
+          margin: [6, 6, 6, 6],
           filename: filename,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', letterRendering: true },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
         await html2pdf().set(opt).from(reportElement).save();
@@ -280,6 +280,10 @@ export default function HandoverModal({
       return;
     }
 
+    const activeStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map(el => el.outerHTML)
+      .join('\n');
+
     newTab.document.open();
     newTab.document.write(`
       <!DOCTYPE html>
@@ -287,20 +291,24 @@ export default function HandoverModal({
       <head>
         <meta charset="utf-8">
         <title>Zimmet Tutanağı - ${employeeName || computerName || 'Personel'}</title>
+        ${activeStyles}
         <style>
           * { box-sizing: border-box; }
-          @page { size: A4 portrait; margin: 10mm; }
+          *, *::before, *::after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          @page { size: A4 portrait; margin: 8mm; }
           body {
             margin: 0;
             padding: 16px;
-            background: #ffffff;
-            color: #0f172a;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
           }
           .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
           }
           .btn-print {
@@ -314,18 +322,20 @@ export default function HandoverModal({
             border-radius: 8px;
             border: none;
             cursor: pointer;
+            box-shadow: 0 4px 10px rgba(5,150,105,0.3);
           }
           .btn-print:hover { background: #047857; }
           @media print {
             .btn-print { display: none !important; }
-            body { padding: 0; }
+            body { padding: 0 !important; }
+            .container { max-width: 100% !important; margin: 0 !important; }
           }
         </style>
       </head>
       <body>
         <div class="container">
           <button class="btn-print" onclick="window.print()">🖨️ Yazdır / PDF Olarak Kaydet</button>
-          ${reportElement.innerHTML}
+          ${reportElement.outerHTML}
         </div>
       </body>
       </html>

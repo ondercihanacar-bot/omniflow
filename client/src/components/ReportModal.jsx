@@ -10,8 +10,8 @@ import { exportCustomerToExcel } from '../utils/exporter';
 import { api } from '../api';
 import html2pdf from 'html2pdf.js';
 
-export default function ReportModal({ isOpen, onClose, customer }) {
-  const [reportMode, setReportMode] = useState('users'); // 'users' (Kullanıcı & Zimmet Dökümü) | 'full' (Tüm IT Envanteri)
+export default function ReportModal({ isOpen, onClose, customer, initialMode = 'users' }) {
+  const [reportMode, setReportMode] = useState(initialMode || 'users'); // 'users' (Kullanıcı & Zimmet Dökümü) | 'full' (Tüm IT Envanteri)
   const [selectedBranch, setSelectedBranch] = useState('ALL');
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [includeServers, setIncludeServers] = useState(true);
@@ -21,6 +21,12 @@ export default function ReportModal({ isOpen, onClose, customer }) {
   const [includeWifi, setIncludeWifi] = useState(true);
   const [includeMail, setIncludeMail] = useState(true);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen && initialMode) {
+      setReportMode(initialMode);
+    }
+  }, [isOpen, initialMode]);
 
   if (!isOpen || !customer) return null;
 
@@ -151,8 +157,8 @@ export default function ReportModal({ isOpen, onClose, customer }) {
     const filename = `OMNIFlow_Rapor_${customerCode}_${reportTitle}.pdf`;
 
     try {
-      // 1. Try Backend Chromium Vector PDF generation first (Instant, High Quality, Clean A4)
-      const htmlContent = reportElement.innerHTML;
+      // 1. Try Backend Chromium Vector PDF generation first with complete styles
+      const htmlContent = reportElement.outerHTML;
       const blob = await api.generatePdf(htmlContent, filename);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -167,10 +173,10 @@ export default function ReportModal({ isOpen, onClose, customer }) {
       // 2. Client-side html2pdf fallback
       try {
         const opt = {
-          margin: [8, 8, 8, 8],
+          margin: [6, 6, 6, 6],
           filename: filename,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', letterRendering: true },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
         await html2pdf().set(opt).from(reportElement).save();
@@ -203,6 +209,10 @@ export default function ReportModal({ isOpen, onClose, customer }) {
       return;
     }
 
+    const activeStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map(el => el.outerHTML)
+      .join('\n');
+
     newTab.document.open();
     newTab.document.write(`
       <!DOCTYPE html>
@@ -210,15 +220,19 @@ export default function ReportModal({ isOpen, onClose, customer }) {
       <head>
         <meta charset="utf-8">
         <title>${customer.name || 'Müşteri'} - ${reportMode === 'users' ? 'Personel & Kullanıcı Dökümü' : 'IT Envanter Raporu'}</title>
+        ${activeStyles}
         <style>
           * { box-sizing: border-box; }
+          *, *::before, *::after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
           @page { size: A4 portrait; margin: 8mm; }
-          html, body {
+          body {
             margin: 0; padding: 20px;
             background: #ffffff !important; color: #0f172a !important;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
           }
           .toolbar {
             position: sticky; top: 0; z-index: 50;
@@ -244,11 +258,6 @@ export default function ReportModal({ isOpen, onClose, customer }) {
             width: 100%; max-width: 980px; margin: 0 auto;
             background: #ffffff;
           }
-          table { width: 100% !important; border-collapse: collapse !important; margin-bottom: 14px !important; font-size: 10.5px !important; }
-          th, td { border: 1px solid #cbd5e1 !important; padding: 5px 7px !important; text-align: left; }
-          th { background: #f8fafc !important; font-weight: bold; }
-          .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important; }
-          .break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
         </style>
       </head>
       <body>
@@ -262,7 +271,7 @@ export default function ReportModal({ isOpen, onClose, customer }) {
           </div>
         </div>
         <div class="report-sheet">
-          ${reportElement.innerHTML}
+          ${reportElement.outerHTML}
         </div>
       </body>
       </html>

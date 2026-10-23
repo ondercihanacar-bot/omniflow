@@ -1028,18 +1028,46 @@ app.get('/api/customers/:id', (req, res) => {
   }
 });
 
-// Helper to find installed Chrome or Edge executable on Windows
+// Helper to find installed Chrome or Edge executable on Windows & Linux
 function getBrowserExecutable() {
   const candidates = [
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/snap/bin/chromium'
   ];
   for (const cand of candidates) {
     if (fs.existsSync(cand)) return cand;
   }
+  try {
+    const isWin = process.platform === 'win32';
+    const whichCmd = isWin ? 'where chrome 2>nul || where msedge 2>nul' : 'which google-chrome 2>/dev/null || which chromium 2>/dev/null';
+    const stdout = require('child_process').execSync(whichCmd, { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim();
+    const firstPath = stdout.split(/\r?\n/)[0];
+    if (firstPath && fs.existsSync(firstPath)) return firstPath;
+  } catch (e) {}
   return null;
+}
+
+// Read compiled Tailwind CSS from client assets for exact-color PDF rendering
+function getApplicationCss() {
+  try {
+    const assetsDir = path.join(__dirname, '../client/dist/assets');
+    if (fs.existsSync(assetsDir)) {
+      const files = fs.readdirSync(assetsDir).filter(f => f.endsWith('.css'));
+      if (files.length > 0) {
+        return files.map(f => fs.readFileSync(path.join(assetsDir, f), 'utf8')).join('\n');
+      }
+    }
+  } catch (e) {
+    console.error('[PDF Generator] Error reading assets CSS:', e.message);
+  }
+  return '';
 }
 
 // PDF Generation Endpoint via Headless Chromium / Edge
@@ -1062,30 +1090,44 @@ app.post('/api/generate-pdf', (req, res) => {
     const tempHtml = path.join(os.tmpdir(), `${tempId}.html`);
     const tempPdf = path.join(os.tmpdir(), `${tempId}.pdf`);
 
+    const appCss = getApplicationCss();
     const fullHtml = `<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="utf-8">
   <title>${filename}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    * { box-sizing: border-box; }
-    @page { size: A4 portrait; margin: 8mm; }
+    ${appCss}
+  </style>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    @page {
+      size: A4 portrait;
+      margin: 8mm;
+    }
     html, body {
-      margin: 0; padding: 12px;
+      margin: 0;
+      padding: 0;
       background: #ffffff !important;
       color: #0f172a !important;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
+      color-adjust: exact !important;
     }
-    table { width: 100% !important; border-collapse: collapse !important; margin-bottom: 12px !important; font-size: 10.5px !important; }
-    th, td { border: 1px solid #cbd5e1 !important; padding: 5px 7px !important; text-align: left; }
-    th { background: #f8fafc !important; font-weight: bold; }
-    .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important; }
-    .break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
+    .break-inside-avoid {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
   </style>
 </head>
-<body style="background: #ffffff; color: #0f172a; padding: 10px;">
+<body class="bg-white text-slate-900 p-2">
   ${html}
 </body>
 </html>`;

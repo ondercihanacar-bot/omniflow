@@ -103,6 +103,12 @@ export default function App() {
 
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportModalMode, setReportModalMode] = useState('full');
+
+  const handleOpenReport = (mode = 'full') => {
+    setReportModalMode(mode);
+    setIsReportModalOpen(true);
+  };
   const [isLicenseAlertModalOpen, setIsLicenseAlertModalOpen] = useState(false);
   const [isOmniHubLicenseModalOpen, setIsOmniHubLicenseModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
@@ -1321,7 +1327,7 @@ export default function App() {
                         </button>
 
                         <button
-                          onClick={() => setIsReportModalOpen(true)}
+                          onClick={() => handleOpenReport('full')}
                           title={t('tabs.reportPdfTooltip')}
                           className="flex items-center gap-1.5 px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-xs font-semibold rounded-lg border border-blue-500/40 transition-colors cursor-pointer"
                         >
@@ -1682,7 +1688,7 @@ export default function App() {
                     <ErrorBoundary title="Ağ Topolojisi Sekmesinde Bir Sorun Oluştu">
                       <NetworkTopologyTab
                         customer={customerData}
-                        onOpenReport={() => setIsReportModalOpen(true)}
+                        onOpenReport={() => handleOpenReport('full')}
                       />
                     </ErrorBoundary>
                   </div>
@@ -1773,7 +1779,7 @@ export default function App() {
                       setIsPCModalOpen(true);
                     }}
                     onDelete={handleDeletePC}
-                    onOpenReport={() => setIsReportModalOpen(true)}
+                    onOpenReport={() => handleOpenReport('users')}
                     onReloadCustomer={() => loadCustomerDetails(selectedCustomerId)}
                     onManageBranches={() => setIsBranchManagerModalOpen(true)}
                   />
@@ -2089,6 +2095,7 @@ export default function App() {
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         customer={customerData}
+        initialMode={reportModalMode}
       />
 
       {/* License Alert Center Modal (Firewalls, Antivirus & Mail/Exchange) */}
@@ -2181,7 +2188,7 @@ export default function App() {
         licenseAlerts={licenseAlerts}
         onOpenSearch={() => setIsSearchModalOpen(true)}
         onOpenLicenseAlerts={() => setIsLicenseAlertModalOpen(true)}
-        onOpenReport={() => setIsReportModalOpen(true)}
+        onOpenReport={() => handleOpenReport('full')}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         selectedCustomerName={customerData?.name}
         currentUser={currentUser}
