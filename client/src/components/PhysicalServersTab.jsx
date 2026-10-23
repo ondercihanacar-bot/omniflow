@@ -71,9 +71,9 @@ export default function PhysicalServersTab({
   });
 
   return (
-    <div className="space-y-4">
+    <div className="flex-1 min-h-0 flex flex-col space-y-3 h-full">
       {/* Top Filter and Action Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/70 p-3.5 sm:p-4 rounded-xl border border-slate-800">
+      <div className="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/70 p-3 sm:p-3.5 rounded-xl border border-slate-800">
         <div className="flex flex-1 items-center gap-3 flex-wrap sm:flex-nowrap">
           <div className="relative flex-1 min-w-[200px] max-w-md">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -180,7 +180,8 @@ export default function PhysicalServersTab({
         </div>
       ) : viewMode === 'cards' ? (
         /* ================= SERVER CARD VIEW ================= */
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {filtered.map((s) => (
             <div
               key={s.id}
@@ -358,15 +359,16 @@ export default function PhysicalServersTab({
               </div>
             </div>
           ))}
+          </div>
         </div>
       ) : (
         /* ================= EXPANDED TABLE VIEW ================= */
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/80 text-slate-400 uppercase font-semibold border-b border-slate-800">
+        <div className="flex-1 min-h-0 bg-slate-900/70 border border-slate-800 rounded-xl shadow-sm flex flex-col overflow-hidden">
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 scrollbar-thin">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-950/95 backdrop-blur-md text-slate-400 uppercase font-semibold border-b border-slate-800 sticky top-0 z-20 shadow-sm">
                 <tr>
-                  <th className="py-3 px-3.5 sticky left-0 bg-slate-950 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.3)] min-w-[200px]">
+                  <th className="py-3 px-3.5 sticky left-0 top-0 bg-slate-950 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.3)] min-w-[200px]">
                     Sunucu Adı & Model
                   </th>
                   <th className="py-3 px-3.5 min-w-[220px]">Donanım (CPU / RAM / Disk)</th>

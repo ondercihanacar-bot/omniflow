@@ -1164,7 +1164,7 @@ export default function App() {
         />
 
         {/* Main Content Area */}
-        <main className={`flex-1 flex flex-col bg-slate-950 w-full min-w-0 ${!customerData && viewMode !== 'kb' ? 'overflow-hidden h-full' : 'overflow-y-auto'}`}>
+        <main className={`flex-1 flex flex-col bg-slate-950 w-full min-w-0 h-full overflow-hidden`}>
           {/* Expired License Warning Banner */}
           {omniLicense?.status === 'expired' && (
             <div className="mx-4 sm:mx-6 mt-4 p-4 rounded-2xl border border-amber-500/80 bg-amber-950/40 text-amber-200 flex items-center justify-between shadow-lg shadow-amber-950/30">
@@ -1187,7 +1187,7 @@ export default function App() {
             </div>
           )}
           {viewMode === 'kb' ? (
-            <div className="flex-1 p-4 sm:p-6 w-full">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 w-full">
               <KnowledgeBaseTab
                 items={kbItems}
                 customers={customers}
@@ -1227,9 +1227,9 @@ export default function App() {
               onOpenSearch={() => setIsSearchModalOpen(true)}
             />
           ) : (
-            <div className="flex-1 flex flex-col p-2.5 sm:p-4 md:p-6 space-y-4 sm:space-y-5 w-full min-w-0">
+            <div className="flex-1 min-h-0 flex flex-col p-2.5 sm:p-4 md:p-5 w-full min-w-0 h-full overflow-hidden">
               {/* Customer Header Banner */}
-              <div className="bg-slate-900/90 border border-slate-800/90 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-sm">
+              <div className="shrink-0 bg-slate-900/90 border border-slate-800/90 rounded-xl sm:rounded-2xl p-3 sm:p-4.5 shadow-sm mb-3">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   <div className="flex items-start gap-3 sm:gap-4">
                     <button
@@ -1663,44 +1663,50 @@ export default function App() {
               </div>
 
               {/* Active Tab Component */}
-              <div className="flex-1 pb-10">
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                 {activeTab === 'overview' && (
-                  <OverviewTab
-                    customer={customerData}
-                    onNavigateTab={(tab) => setActiveTab(tab)}
-                    onOpenAddModal={handleQuickAdd}
-                    neonEnabled={neonEnabled}
-                    canEdit={checkPermission(currentUser, 'edit')}
-                    currentUser={currentUser}
-                  />
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-6">
+                    <OverviewTab
+                      customer={customerData}
+                      onNavigateTab={(tab) => setActiveTab(tab)}
+                      onOpenAddModal={handleQuickAdd}
+                      neonEnabled={neonEnabled}
+                      canEdit={checkPermission(currentUser, 'edit')}
+                      currentUser={currentUser}
+                    />
+                  </div>
                 )}
 
                 {activeTab === 'topology' && (
-                  <ErrorBoundary title="Ağ Topolojisi Sekmesinde Bir Sorun Oluştu">
-                    <NetworkTopologyTab
-                      customer={customerData}
-                      onOpenReport={() => setIsReportModalOpen(true)}
-                    />
-                  </ErrorBoundary>
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-6">
+                    <ErrorBoundary title="Ağ Topolojisi Sekmesinde Bir Sorun Oluştu">
+                      <NetworkTopologyTab
+                        customer={customerData}
+                        onOpenReport={() => setIsReportModalOpen(true)}
+                      />
+                    </ErrorBoundary>
+                  </div>
                 )}
 
                 {activeTab === 'lines' && (
-                  <InternetLinesTab
-                    lines={customerData.internet_lines || []}
-                    canEdit={checkPermission(currentUser, 'edit')}
-                    canDelete={checkPermission(currentUser, 'delete')}
-                    canViewPasswords={checkPermission(currentUser, 'view_passwords')}
-                    onAdd={() => {
-                      setEditingLine(null);
-                      setIsLineModalOpen(true);
-                    }}
-                    onEdit={(l) => {
-                      setEditingLine(l);
-                      setIsLineModalOpen(true);
-                    }}
-                    onDelete={handleDeleteLine}
-                    onManageBranches={() => setIsBranchManagerModalOpen(true)}
-                  />
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-6">
+                    <InternetLinesTab
+                      lines={customerData.internet_lines || []}
+                      canEdit={checkPermission(currentUser, 'edit')}
+                      canDelete={checkPermission(currentUser, 'delete')}
+                      canViewPasswords={checkPermission(currentUser, 'view_passwords')}
+                      onAdd={() => {
+                        setEditingLine(null);
+                        setIsLineModalOpen(true);
+                      }}
+                      onEdit={(l) => {
+                        setEditingLine(l);
+                        setIsLineModalOpen(true);
+                      }}
+                      onDelete={handleDeleteLine}
+                      onManageBranches={() => setIsBranchManagerModalOpen(true)}
+                    />
+                  </div>
                 )}
 
                 {activeTab === 'servers' && (
@@ -1726,25 +1732,27 @@ export default function App() {
                 )}
 
                 {activeTab === 'vms' && (
-                  <VirtualMachinesTab
-                    customer={customerData}
-                    branches={customerBranches}
-                    vms={customerData.virtual_machines || []}
-                    physicalServers={customerData.physical_servers || []}
-                    canEdit={checkPermission(currentUser, 'edit')}
-                    canDelete={checkPermission(currentUser, 'delete')}
-                    onAdd={() => {
-                      setEditingVM(null);
-                      setIsVMModalOpen(true);
-                    }}
-                    onEdit={(vm) => {
-                      setEditingVM(vm);
-                      setIsVMModalOpen(true);
-                    }}
-                    onDelete={handleDeleteVM}
-                    onReloadCustomer={() => customerData && loadCustomerDetails(customerData.id)}
-                    onManageBranches={() => setIsBranchManagerModalOpen(true)}
-                  />
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-6">
+                    <VirtualMachinesTab
+                      customer={customerData}
+                      branches={customerBranches}
+                      vms={customerData.virtual_machines || []}
+                      physicalServers={customerData.physical_servers || []}
+                      canEdit={checkPermission(currentUser, 'edit')}
+                      canDelete={checkPermission(currentUser, 'delete')}
+                      onAdd={() => {
+                        setEditingVM(null);
+                        setIsVMModalOpen(true);
+                      }}
+                      onEdit={(vm) => {
+                        setEditingVM(vm);
+                        setIsVMModalOpen(true);
+                      }}
+                      onDelete={handleDeleteVM}
+                      onReloadCustomer={() => customerData && loadCustomerDetails(customerData.id)}
+                      onManageBranches={() => setIsBranchManagerModalOpen(true)}
+                    />
+                  </div>
                 )}
 
                 {activeTab === 'pcs' && (
@@ -1772,135 +1780,145 @@ export default function App() {
                 )}
 
                 {activeTab === 'firewalls' && (
-                  <FirewallsTab
-                    firewalls={customerData.firewalls || []}
-                    branches={customerBranches}
-                    canEdit={checkPermission(currentUser, 'edit')}
-                    canDelete={checkPermission(currentUser, 'delete')}
-                    canViewPasswords={checkPermission(currentUser, 'view_passwords')}
-                    onAdd={() => {
-                      setEditingFirewall(null);
-                      setIsFirewallModalOpen(true);
-                    }}
-                    onEdit={(fw) => {
-                      setEditingFirewall(fw);
-                      setIsFirewallModalOpen(true);
-                    }}
-                    onDelete={handleDeleteFirewall}
-                    onManageBranches={() => setIsBranchManagerModalOpen(true)}
-                  />
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-6">
+                    <FirewallsTab
+                      firewalls={customerData.firewalls || []}
+                      branches={customerBranches}
+                      canEdit={checkPermission(currentUser, 'edit')}
+                      canDelete={checkPermission(currentUser, 'delete')}
+                      canViewPasswords={checkPermission(currentUser, 'view_passwords')}
+                      onAdd={() => {
+                        setEditingFirewall(null);
+                        setIsFirewallModalOpen(true);
+                      }}
+                      onEdit={(fw) => {
+                        setEditingFirewall(fw);
+                        setIsFirewallModalOpen(true);
+                      }}
+                      onDelete={handleDeleteFirewall}
+                      onManageBranches={() => setIsBranchManagerModalOpen(true)}
+                    />
+                  </div>
                 )}
 
                 {activeTab === 'antivirus' && (
-                  <AntivirusTab
-                    licenses={customerData.antivirus_licenses || []}
-                    branches={customerBranches}
-                    canEdit={checkPermission(currentUser, 'edit')}
-                    canDelete={checkPermission(currentUser, 'delete')}
-                    onAdd={() => {
-                      setEditingAntivirus(null);
-                      setIsAntivirusModalOpen(true);
-                    }}
-                    onEdit={(item) => {
-                      setEditingAntivirus(item);
-                      setIsAntivirusModalOpen(true);
-                    }}
-                    onDelete={handleDeleteAntivirus}
-                  />
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-6">
+                    <AntivirusTab
+                      licenses={customerData.antivirus_licenses || []}
+                      branches={customerBranches}
+                      canEdit={checkPermission(currentUser, 'edit')}
+                      canDelete={checkPermission(currentUser, 'delete')}
+                      onAdd={() => {
+                        setEditingAntivirus(null);
+                        setIsAntivirusModalOpen(true);
+                      }}
+                      onEdit={(item) => {
+                        setEditingAntivirus(item);
+                        setIsAntivirusModalOpen(true);
+                      }}
+                      onDelete={handleDeleteAntivirus}
+                    />
+                  </div>
                 )}
 
                 {activeTab === 'backups' && (
-                  <BackupUnitsTab
-                    backupUnits={customerData.backup_units || []}
-                    branches={customerBranches}
-                    canEdit={checkPermission(currentUser, 'edit')}
-                    canDelete={checkPermission(currentUser, 'delete')}
-                    canViewPasswords={checkPermission(currentUser, 'view_passwords')}
-                    onAdd={() => {
-                      setEditingBackup(null);
-                      setIsBackupModalOpen(true);
-                    }}
-                    onEdit={(bu) => {
-                      setEditingBackup(bu);
-                      setIsBackupModalOpen(true);
-                    }}
-                    onDelete={handleDeleteBackup}
-                    onManageBranches={() => setIsBranchManagerModalOpen(true)}
-                  />
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-6">
+                    <BackupUnitsTab
+                      backupUnits={customerData.backup_units || []}
+                      branches={customerBranches}
+                      canEdit={checkPermission(currentUser, 'edit')}
+                      canDelete={checkPermission(currentUser, 'delete')}
+                      canViewPasswords={checkPermission(currentUser, 'view_passwords')}
+                      onAdd={() => {
+                        setEditingBackup(null);
+                        setIsBackupModalOpen(true);
+                      }}
+                      onEdit={(bu) => {
+                        setEditingBackup(bu);
+                        setIsBackupModalOpen(true);
+                      }}
+                      onDelete={handleDeleteBackup}
+                      onManageBranches={() => setIsBranchManagerModalOpen(true)}
+                    />
+                  </div>
                 )}
 
                 {activeTab === 'wifi' && (
-                  <WifiTab
-                    customer={customerData}
-                    controllers={customerData.wifi_controllers || []}
-                    accessPoints={customerData.wifi_access_points || []}
-                    networks={customerData.wifi_networks || []}
-                    branches={customerBranches}
-                    canEdit={checkPermission(currentUser, 'edit')}
-                    canDelete={checkPermission(currentUser, 'delete')}
-                    canViewPasswords={checkPermission(currentUser, 'view_passwords')}
-                    onAddController={() => {
-                      setEditingWifiController(null);
-                      setIsWifiControllerModalOpen(true);
-                    }}
-                    onEditController={(ctrl) => {
-                      setEditingWifiController(ctrl);
-                      setIsWifiControllerModalOpen(true);
-                    }}
-                    onDeleteController={handleDeleteWifiController}
-                    onAddAP={() => {
-                      setEditingWifiAP(null);
-                      setIsWifiAPModalOpen(true);
-                    }}
-                    onEditAP={(ap) => {
-                      setEditingWifiAP(ap);
-                      setIsWifiAPModalOpen(true);
-                    }}
-                    onDeleteAP={handleDeleteWifiAP}
-                    onAddNetwork={() => {
-                      setEditingWifiNetwork(null);
-                      setIsWifiNetworkModalOpen(true);
-                    }}
-                    onEditNetwork={(net) => {
-                      setEditingWifiNetwork(net);
-                      setIsWifiNetworkModalOpen(true);
-                    }}
-                    onDeleteNetwork={handleDeleteWifiNetwork}
-                  />
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-6">
+                    <WifiTab
+                      customer={customerData}
+                      controllers={customerData.wifi_controllers || []}
+                      accessPoints={customerData.wifi_access_points || []}
+                      networks={customerData.wifi_networks || []}
+                      branches={customerBranches}
+                      canEdit={checkPermission(currentUser, 'edit')}
+                      canDelete={checkPermission(currentUser, 'delete')}
+                      canViewPasswords={checkPermission(currentUser, 'view_passwords')}
+                      onAddController={() => {
+                        setEditingWifiController(null);
+                        setIsWifiControllerModalOpen(true);
+                      }}
+                      onEditController={(ctrl) => {
+                        setEditingWifiController(ctrl);
+                        setIsWifiControllerModalOpen(true);
+                      }}
+                      onDeleteController={handleDeleteWifiController}
+                      onAddAP={() => {
+                        setEditingWifiAP(null);
+                        setIsWifiAPModalOpen(true);
+                      }}
+                      onEditAP={(ap) => {
+                        setEditingWifiAP(ap);
+                        setIsWifiAPModalOpen(true);
+                      }}
+                      onDeleteAP={handleDeleteWifiAP}
+                      onAddNetwork={() => {
+                        setEditingWifiNetwork(null);
+                        setIsWifiNetworkModalOpen(true);
+                      }}
+                      onEditNetwork={(net) => {
+                        setEditingWifiNetwork(net);
+                        setIsWifiNetworkModalOpen(true);
+                      }}
+                      onDeleteNetwork={handleDeleteWifiNetwork}
+                    />
+                  </div>
                 )}
 
                 {activeTab === 'mail' && (
-                  <MailTab
-                    customer={customerData}
-                    mailServices={customerData.mail_services || []}
-                    mailAccounts={customerData.mail_accounts || []}
-                    branches={customerBranches}
-                    computers={customerData.user_computers || []}
-                    currentUser={currentUser}
-                    canEdit={checkPermission(currentUser, 'edit')}
-                    canDelete={checkPermission(currentUser, 'delete')}
-                    canViewPasswords={checkPermission(currentUser, 'view_passwords')}
-                    onAddService={() => {
-                      setEditingMailService(null);
-                      setIsMailServiceModalOpen(true);
-                    }}
-                    onEditService={(srv) => {
-                      setEditingMailService(srv);
-                      setIsMailServiceModalOpen(true);
-                    }}
-                    onDeleteService={handleDeleteMailService}
-                    onAddAccount={() => {
-                      setEditingMailAccount(null);
-                      setIsMailAccountModalOpen(true);
-                    }}
-                    onEditAccount={(acc) => {
-                      setEditingMailAccount(acc);
-                      setIsMailAccountModalOpen(true);
-                    }}
-                    onDeleteAccount={handleDeleteMailAccount}
-                    onQuickUpdateAccount={handleQuickUpdateMailAccount}
-                    onReloadCustomer={() => loadCustomerDetails(selectedCustomerId)}
-                  />
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-6">
+                    <MailTab
+                      customer={customerData}
+                      mailServices={customerData.mail_services || []}
+                      mailAccounts={customerData.mail_accounts || []}
+                      branches={customerBranches}
+                      computers={customerData.user_computers || []}
+                      currentUser={currentUser}
+                      canEdit={checkPermission(currentUser, 'edit')}
+                      canDelete={checkPermission(currentUser, 'delete')}
+                      canViewPasswords={checkPermission(currentUser, 'view_passwords')}
+                      onAddService={() => {
+                        setEditingMailService(null);
+                        setIsMailServiceModalOpen(true);
+                      }}
+                      onEditService={(srv) => {
+                        setEditingMailService(srv);
+                        setIsMailServiceModalOpen(true);
+                      }}
+                      onDeleteService={handleDeleteMailService}
+                      onAddAccount={() => {
+                        setEditingMailAccount(null);
+                        setIsMailAccountModalOpen(true);
+                      }}
+                      onEditAccount={(acc) => {
+                        setEditingMailAccount(acc);
+                        setIsMailAccountModalOpen(true);
+                      }}
+                      onDeleteAccount={handleDeleteMailAccount}
+                      onQuickUpdateAccount={handleQuickUpdateMailAccount}
+                      onReloadCustomer={() => loadCustomerDetails(selectedCustomerId)}
+                    />
+                  </div>
                 )}
               </div>
             </div>

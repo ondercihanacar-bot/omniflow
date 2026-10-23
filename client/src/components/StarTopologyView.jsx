@@ -3,7 +3,7 @@ import {
   Globe, Shield, Server, Cloud, Laptop, Database, Network,
   Wifi, Activity, Sparkles, Radio, CheckCircle2, Cpu, HardDrive,
   User, Key, ExternalLink, ShieldCheck, Zap, X, Copy, RefreshCw,
-  Sliders, ArrowUpRight, ChevronRight, Lock
+  Sliders, ArrowUpRight, ChevronRight, Lock, Printer
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 
