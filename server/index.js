@@ -1718,6 +1718,7 @@ app.get('/api/agent/server-info', (req, res) => {
     const host = req.get('host') || 'localhost:5000';
     res.json({
       success: true,
+      hostname: os.hostname(),
       lanIps: ips,
       primaryLanIp: ips.find(i => !i.name.toLowerCase().includes('vpn') && !i.name.toLowerCase().includes('virtual') && !i.name.toLowerCase().includes('vEthernet'))?.address || ips[0]?.address || '127.0.0.1',
       port: PORT,

@@ -58,14 +58,18 @@ export default function ComputerCollectorModal({
 
   if (!isOpen || !customer) return null;
 
-  // Cloud URL vs Local LAN URL vs Custom URL
+  // Cloud URL vs Local LAN URL vs Custom URL vs Hostname URL
   const cloudUrl = serverInfo?.cloudUrl || (isCloudHost ? window.location.origin : 'https://omniflow-mptm.onrender.com');
   const detectedLanIp = serverInfo?.primaryLanIp || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && !isCloudHost ? window.location.hostname : '192.168.3.59');
+  const hostname = serverInfo?.hostname || '';
   const lanUrl = `http://${detectedLanIp}:5000`;
+  const hostnameUrl = hostname ? `http://${hostname}:5000` : lanUrl;
 
   let baseUrl = lanUrl;
   if (serverMode === 'cloud') {
     baseUrl = cloudUrl;
+  } else if (serverMode === 'hostname') {
+    baseUrl = hostnameUrl;
   } else if (serverMode === 'custom') {
     baseUrl = customHost.trim() || lanUrl;
   } else {
@@ -383,11 +387,27 @@ export default function ComputerCollectorModal({
                           ? 'bg-emerald-600 text-white shadow-sm'
                           : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
                       }`}
+                      title="Mevcut Yerel IP adresiniz üzerinden bağlanır"
                     >
                       <Network className="w-3 h-3" />
-                      <span>Yerel Ağ ({detectedLanIp}:5000)</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/30 font-mono">ÖNERİLEN</span>
+                      <span>Yerel IP ({detectedLanIp}:5000)</span>
                     </button>
+                    {hostname && (
+                      <button
+                        type="button"
+                        onClick={() => setServerMode('hostname')}
+                        className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
+                          serverMode === 'hostname'
+                            ? 'bg-cyan-600 text-white shadow-sm ring-1 ring-cyan-400'
+                            : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+                        }`}
+                        title="IP değişse bile yerel ağda bilgisayar adınız sabit kalır"
+                      >
+                        <Laptop className="w-3 h-3 text-cyan-400" />
+                        <span>Bilgisayar Adı ({hostname}:5000)</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/80 font-mono font-bold">IP DEĞİŞSE DE ÇALIŞIR</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setServerMode('cloud')}
@@ -435,6 +455,14 @@ export default function ComputerCollectorModal({
                     </div>
                   </div>
                 )}
+
+                {/* Dynamic IP helper banner */}
+                <div className="pt-2 border-t border-slate-800/80 flex items-start gap-2 text-[11px] text-slate-300">
+                  <Info className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
+                  <div className="leading-relaxed">
+                    <span className="text-cyan-300 font-semibold">💡 IP Adresiniz Sürekli Değişiyorsa:</span> Yukarıdaki <strong className="text-white">"Bilgisayar Adı ({hostname || 'SENKRON-01'}:5000)"</strong> seçeneğini kullanın (Windows yerel ağda bilgisayar adınızı IP değişse bile otomatik bulur) veya aşağıdaki <strong className="text-emerald-300">"YÖNTEM 2: Bağımsız Kod"</strong> ile IP/ağ bağlantısı gerekmeksizin verileri anında çekebilirsiniz.
+                  </div>
+                </div>
               </div>
 
               {/* TLS 1.2 Guarantee Info Badge */}
