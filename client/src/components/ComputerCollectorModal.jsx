@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Laptop, Zap, Copy, Check, Download, ShieldCheck,
   Terminal, FileCode, WifiOff, Sparkles, Building2, CheckCircle2,
-  ExternalLink, Info, AlertCircle, Server, Network, Globe, Cloud, Loader2
+  ExternalLink, Info, AlertCircle, Server, Network, Globe, Cloud, Loader2,
+  ClipboardPaste, ClipboardCheck
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 import { api } from '../api';
@@ -28,6 +29,30 @@ export default function ComputerCollectorModal({
   const [offlineError, setOfflineError] = useState(null);
   const [downloadingFormat, setDownloadingFormat] = useState(null); // 'bat' | 'ps1' | null
   const [downloadSuccess, setDownloadSuccess] = useState(null); // 'bat' | 'ps1' | null
+  const [clipboardStatus, setClipboardStatus] = useState(null); // null | 'success' | 'empty' | 'denied'
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        setOfflineError('Tarayıcınız otomatik pano okumayı desteklemiyor. Lütfen aşağıdaki kutuya Ctrl + V ile yapıştırınız.');
+        return;
+      }
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        setOfflineError('Panoda kopyalanmış herhangi bir veri bulunamadı. Lütfen önce AnyDesk/TeamViewer ile bağlandığınız bilgisayarda YÖNTEM 2 komutunu çalıştırınız.');
+        setClipboardStatus('empty');
+        return;
+      }
+      setOfflineJson(text.trim());
+      setOfflineError(null);
+      setClipboardStatus('success');
+      setTimeout(() => setClipboardStatus(null), 3500);
+    } catch (err) {
+      console.warn('Clipboard read error:', err);
+      setOfflineError('Tarayıcı pano erişimine izin vermedi. Lütfen aşağıdaki kutucuğa tıklayıp klavyenizden Ctrl + V yapınız.');
+      setClipboardStatus('denied');
+    }
+  };
 
   useEffect(() => {
     setTargetType(initialTargetType || 'computer');
@@ -361,8 +386,11 @@ export default function ComputerCollectorModal({
                 : 'text-slate-400 hover:text-slate-200 border-transparent hover:bg-slate-800/40'
             }`}
           >
-            <WifiOff className="w-4 h-4 text-emerald-400" />
-            <span>3. Çevrimdışı Yapıştır</span>
+            <ClipboardPaste className="w-4 h-4 text-emerald-400" />
+            <span>3. AnyDesk / Çevrimdışı Yapıştır</span>
+            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono hidden md:inline">
+              UZAKTAN ÇEKME
+            </span>
           </button>
         </div>
 
@@ -428,22 +456,28 @@ export default function ComputerCollectorModal({
                           ? 'bg-purple-600 text-white shadow-sm'
                           : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
                       }`}
+                      title="Cloudflare Tunnel, Ngrok veya genel internet URL adresi"
                     >
-                      Özel IP
+                      Özel IP / Tünel URL
                     </button>
                   </div>
                 </div>
 
                 {serverMode === 'custom' && (
-                  <div className="pt-2 border-t border-slate-800/80 flex items-center gap-2">
-                    <span className="text-slate-400 text-[11px] shrink-0">Hedef URL:</span>
-                    <input
-                      type="text"
-                      value={customHost}
-                      onChange={(e) => setCustomHost(e.target.value)}
-                      placeholder="http://192.168.1.50:5000"
-                      className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
-                    />
+                  <div className="pt-2 border-t border-slate-800/80 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-400 text-[11px] shrink-0">Hedef URL:</span>
+                      <input
+                        type="text"
+                        value={customHost}
+                        onChange={(e) => setCustomHost(e.target.value)}
+                        placeholder="https://xyz.trycloudflare.com veya http://192.168.1.50:5000"
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      💡 Farklı şehirden (örn: Kocaeli) doğrudan İstanbul&apos;a kaydetmek için Cloudflare Tunnel (<code className="text-purple-300 font-mono">cloudflared tunnel --url http://localhost:5000</code>) veya genel adresinizi buraya yazabilirsiniz.
+                    </p>
                   </div>
                 )}
 
@@ -462,6 +496,29 @@ export default function ComputerCollectorModal({
                   <div className="leading-relaxed">
                     <span className="text-cyan-300 font-semibold">💡 IP Adresiniz Sürekli Değişiyorsa:</span> Yukarıdaki <strong className="text-white">"Bilgisayar Adı ({hostname || 'SENKRON-01'}:5000)"</strong> seçeneğini kullanın (Windows yerel ağda bilgisayar adınızı IP değişse bile otomatik bulur) veya aşağıdaki <strong className="text-emerald-300">"YÖNTEM 2: Bağımsız Kod"</strong> ile IP/ağ bağlantısı gerekmeksizin verileri anında çekebilirsiniz.
                   </div>
+                </div>
+              </div>
+
+              {/* Scenario Guide: Same Network vs Different Cities */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
+                <div className="bg-slate-950/80 border border-emerald-500/30 rounded-xl p-3 space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-400">
+                    <Network className="w-3.5 h-3.5" />
+                    <span>1. Aynı Ağdaysanız (Yerel Ağ):</span>
+                  </div>
+                  <p className="text-slate-300 text-[11px] leading-relaxed">
+                    Müşteri makinede aşağıdaki <strong className="text-white">YÖNTEM 1</strong> komutunu çalıştırın. Doğrudan yerel ağdan sizin OMNIFlow&apos;unuza otomatik kaydolur.
+                  </p>
+                </div>
+
+                <div className="bg-slate-950/80 border border-blue-500/30 rounded-xl p-3 space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-blue-400">
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>2. Farklı Şehir / Uzak Ağ (AnyDesk):</span>
+                  </div>
+                  <p className="text-slate-300 text-[11px] leading-relaxed">
+                    AnyDesk/TeamViewer ile Kocaeli&apos;deki makineye bağlanıp <strong className="text-cyan-300">YÖNTEM 2</strong> kodunu yapıştırın. Pano otomatik İstanbul&apos;a gelir; <strong className="text-emerald-300">"3. AnyDesk Yapıştır"</strong> sekmesinden tek tıkla kaydedin!
+                  </p>
                 </div>
               </div>
 
@@ -684,56 +741,148 @@ export default function ComputerCollectorModal({
             </div>
           )}
 
-          {/* TAB 3: OFFLINE JSON PASTE */}
-          {activeTab === 'offline' && (
-            <div className="space-y-4">
-              <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-3.5 flex items-start gap-3">
-                <WifiOff className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                <div className="text-xs space-y-1">
-                  <div className="font-bold text-emerald-300">İnternetsiz / Güvenlikli Cihazlar İçin</div>
-                  <p className="text-slate-300 leading-relaxed">
-                    Eğer hedef {isServer ? 'sunucu' : 'bilgisayar'} internete bağlı değilse veya firewall dışarı POST atılmasını engelliyorsa, PowerShell scripti çalıştığında JSON kodunu ekrana basar ve panoya kopyalar. O JSON kodunu buraya yapıştırıp kaydedebilirsiniz.
-                  </p>
+          {/* TAB 3: ANYDESK / OFFLINE JSON PASTE */}
+          {activeTab === 'offline' && (() => {
+            let parsedPreview = null;
+            try {
+              if (offlineJson && offlineJson.trim()) {
+                parsedPreview = JSON.parse(offlineJson.trim());
+              }
+            } catch (e) {}
+
+            return (
+              <div className="space-y-4">
+                {/* AnyDesk & TeamViewer Remote Header Banner */}
+                <div className="bg-gradient-to-r from-blue-950/40 to-indigo-950/40 border border-blue-500/40 rounded-xl p-3.5 flex items-start gap-3 shadow-sm">
+                  <div className="p-2 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30 shrink-0 mt-0.5">
+                    <Globe className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div className="text-xs space-y-1">
+                    <div className="font-bold text-white flex items-center gap-2">
+                      <span>AnyDesk &amp; TeamViewer ile Uzaktan Veri Çekme (Farklı Şehir / Ağ)</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-mono">
+                        ORTAK PANO
+                      </span>
+                    </div>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      AnyDesk veya TeamViewer ile uzaktaki makineye (örn: Kocaeli) bağlıyken, <strong className="text-cyan-300">YÖNTEM 2</strong> kodunu PowerShell&apos;e yapıştırıp çalıştırın. AnyDesk ortak panosu sayesinde veriler doğrudan sizin bilgisayarınıza taşınır. Ardından aşağıdaki mavi butona basarak panodan tek tıkla çekebilirsiniz!
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Panodaki JSON Verisini Yapıştırın:
-                </label>
-                <textarea
-                  rows={6}
-                  value={offlineJson}
-                  onChange={(e) => setOfflineJson(e.target.value)}
-                  placeholder={
-                    isVM
-                      ? `{\n  "vm_name": "VM-SQL01",\n  "hypervisor": "Microsoft Hyper-V",\n  "role_description": "SQL Server & Veritabanı",\n  "vcpu": "8 vCPU",\n  "ram": "32 GB RAM",\n  "disk": "C: 100 GB + D: 500 GB",\n  "ip_address": "192.168.2.50"\n}`
-                      : isServer
-                      ? `{\n  "server_name": "SRV-DC01",\n  "brand": "Dell Inc.",\n  "model": "PowerEdge R740",\n  "serial_number": "8X7K9Z2",\n  "cpu_info": "2 x Intel Xeon Silver 4210R",\n  "ram_info": "64 GB RAM",\n  "disk_info": "PERC H730P (4x 960GB SSD)",\n  "ip_address": "192.168.2.253",\n  "ip_address_2": "192.168.2.254"\n}`
-                      : `{\n  "computer_name": "PC-MUH-01",\n  "brand": "Lenovo",\n  "model": "ThinkCentre",\n  "serial_number": "MJ0DK198",\n  ...\n}`
-                  }
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              {offlineError && (
-                <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-                  <span>{offlineError}</span>
+                {/* 1-Click Clipboard Pull Button */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePasteFromClipboard}
+                    className="flex-1 py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-950/40 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <ClipboardPaste className="w-4 h-4 text-blue-200" />
+                    <span>AnyDesk / TeamViewer Panosundan Otomatik Çek</span>
+                  </button>
+                  {offlineJson && (
+                    <button
+                      type="button"
+                      onClick={() => { setOfflineJson(''); setOfflineError(null); }}
+                      className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs rounded-xl border border-slate-700 transition-colors cursor-pointer"
+                      title="Temizle"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-              )}
 
-              <button
-                type="button"
-                onClick={handleSaveOfflineJson}
-                disabled={isSubmittingOffline || !offlineJson.trim()}
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <Check className="w-4 h-4" />
-                <span>{isSubmittingOffline ? 'Kaydediliyor...' : `${customer.name} Envanterine Kaydet`}</span>
-              </button>
-            </div>
-          )}
+                {clipboardStatus === 'success' && (
+                  <div className="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Panodaki cihaz verileri başarıyla algılandı ve dolduruldu!</span>
+                  </div>
+                )}
+
+                {/* Live Parsed Preview Card */}
+                {parsedPreview && (
+                  <div className="bg-slate-950 border border-emerald-500/50 rounded-xl p-3.5 space-y-2 animate-fadeIn shadow-lg shadow-emerald-950/20">
+                    <div className="flex items-center justify-between">
+                      <div className="text-emerald-400 font-bold text-xs flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>Algılanan Cihaz Verisi (Kayda Hazır):</span>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
+                        JSON DOĞRULANDI ✓
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Cihaz Adı:</span>
+                        <strong className="text-white font-mono">{parsedPreview.computer_name || parsedPreview.server_name || parsedPreview.vm_name || '-'}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Kullanıcı / Rol:</span>
+                        <span className="text-cyan-300 font-medium">{parsedPreview.assigned_user || parsedPreview.role_description || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Donanım:</span>
+                        <span className="text-slate-200">{parsedPreview.brand} {parsedPreview.model}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Ağ (IP / MAC):</span>
+                        <span className="text-emerald-300 font-mono text-[11px]">{parsedPreview.ethernet_ip || parsedPreview.ip_address || parsedPreview.wifi_ip || '-'}</span>
+                      </div>
+                      {(parsedPreview.hardware_specs || parsedPreview.cpu_info) && (
+                        <div className="sm:col-span-2">
+                          <span className="text-slate-500 block text-[10px]">Donanım Özellikleri:</span>
+                          <span className="text-amber-200 font-mono text-[11px]">{parsedPreview.hardware_specs || `${parsedPreview.cpu_info || ''} / ${parsedPreview.ram_info || ''} / ${parsedPreview.disk_info || ''}`}</span>
+                        </div>
+                      )}
+                      {(parsedPreview.user_email) && (
+                        <div className="sm:col-span-2">
+                          <span className="text-slate-500 block text-[10px]">E-posta:</span>
+                          <span className="text-cyan-300 font-mono text-[11px]">{parsedPreview.user_email}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                    <span>Veya JSON Kodunu Buraya Manuel Yapıştırın:</span>
+                    <span className="text-slate-500 text-[11px] font-normal">Ctrl + V</span>
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={offlineJson}
+                    onChange={(e) => setOfflineJson(e.target.value)}
+                    placeholder={
+                      isVM
+                        ? `{\n  "vm_name": "VM-SQL01",\n  "hypervisor": "Microsoft Hyper-V",\n  "role_description": "SQL Server & Veritabanı",\n  "vcpu": "8 vCPU",\n  "ram": "32 GB RAM",\n  "disk": "C: 100 GB + D: 500 GB",\n  "ip_address": "192.168.2.50"\n}`
+                        : isServer
+                        ? `{\n  "server_name": "SRV-DC01",\n  "brand": "Dell Inc.",\n  "model": "PowerEdge R740",\n  "serial_number": "8X7K9Z2",\n  "cpu_info": "2 x Intel Xeon Silver 4210R",\n  "ram_info": "64 GB RAM",\n  "disk_info": "PERC H730P (4x 960GB SSD)",\n  "ip_address": "192.168.2.253",\n  "ip_address_2": "192.168.2.254"\n}`
+                        : `{\n  "computer_name": "PC-MUH-01",\n  "brand": "Lenovo",\n  "model": "ThinkCentre",\n  "serial_number": "MJ0DK198",\n  ...\n}`
+                    }
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                {offlineError && (
+                  <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                    <span>{offlineError}</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleSaveOfflineJson}
+                  disabled={isSubmittingOffline || !offlineJson.trim()}
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/30"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{isSubmittingOffline ? 'Kaydediliyor...' : `${customer.name} Envanterine Kaydet`}</span>
+                </button>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Modal Footer */}
