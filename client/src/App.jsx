@@ -2053,6 +2053,7 @@ export default function App() {
         isOpen={isWifiAPModalOpen}
         ap={editingWifiAP}
         customerId={selectedCustomerId}
+        controllers={customerData?.wifi_controllers || []}
         branches={customerBranches}
         onClose={() => {
           setIsWifiAPModalOpen(false);
@@ -2066,6 +2067,7 @@ export default function App() {
         isOpen={isWifiNetworkModalOpen}
         network={editingWifiNetwork}
         customerId={selectedCustomerId}
+        controllers={customerData?.wifi_controllers || []}
         branches={customerBranches}
         onClose={() => {
           setIsWifiNetworkModalOpen(false);

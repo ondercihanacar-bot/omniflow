@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { X, Wifi, Radio, Router, Shield, Eye, EyeOff, Key, Building2, MapPin, Globe } from 'lucide-react';
 
+const EMPTY_ARRAY = [];
+
 // ==========================================
 // 1. WIFI CONTROLLER MODAL (UniFi / Omada)
 // ==========================================
-export function WifiControllerModal({ isOpen, onClose, onSave, controller, customerId, branches = [] }) {
+export function WifiControllerModal({ isOpen, onClose, onSave, controller, customerId, branches = EMPTY_ARRAY }) {
   const [formData, setFormData] = useState({
     customer_id: customerId,
     controller_name: '',
@@ -21,6 +23,7 @@ export function WifiControllerModal({ isOpen, onClose, onSave, controller, custo
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) return;
     if (controller) {
       setFormData({
         customer_id: controller.customer_id || customerId,
@@ -49,7 +52,7 @@ export function WifiControllerModal({ isOpen, onClose, onSave, controller, custo
       });
     }
     setShowPassword(false);
-  }, [controller, customerId, branches, isOpen]);
+  }, [isOpen, controller?.id, customerId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -256,7 +259,7 @@ export function WifiControllerModal({ isOpen, onClose, onSave, controller, custo
 // ==========================================
 // 2. WIFI ACCESS POINT MODAL (AP CİHAZLARI)
 // ==========================================
-export function WifiAPModal({ isOpen, onClose, onSave, ap, customerId, controllers = [], branches = [] }) {
+export function WifiAPModal({ isOpen, onClose, onSave, ap, customerId, controllers = EMPTY_ARRAY, branches = EMPTY_ARRAY }) {
   const [formData, setFormData] = useState({
     customer_id: customerId,
     controller_id: '',
@@ -272,6 +275,7 @@ export function WifiAPModal({ isOpen, onClose, onSave, ap, customerId, controlle
   });
 
   useEffect(() => {
+    if (!isOpen) return;
     if (ap) {
       setFormData({
         customer_id: ap.customer_id || customerId,
@@ -301,7 +305,7 @@ export function WifiAPModal({ isOpen, onClose, onSave, ap, customerId, controlle
         notes: ''
       });
     }
-  }, [ap, customerId, controllers, branches, isOpen]);
+  }, [isOpen, ap?.id, customerId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -541,7 +545,7 @@ export function WifiAPModal({ isOpen, onClose, onSave, ap, customerId, controlle
 // ==========================================
 // 3. WIFI NETWORK MODAL (SSID & PAROLA)
 // ==========================================
-export function WifiNetworkModal({ isOpen, onClose, onSave, network, customerId, controllers = [], branches = [] }) {
+export function WifiNetworkModal({ isOpen, onClose, onSave, network, customerId, controllers = EMPTY_ARRAY, branches = EMPTY_ARRAY }) {
   const [formData, setFormData] = useState({
     customer_id: customerId,
     controller_id: '',
@@ -558,6 +562,7 @@ export function WifiNetworkModal({ isOpen, onClose, onSave, network, customerId,
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) return;
     if (network) {
       setFormData({
         customer_id: network.customer_id || customerId,
@@ -586,7 +591,7 @@ export function WifiNetworkModal({ isOpen, onClose, onSave, network, customerId,
       });
     }
     setShowPassword(false);
-  }, [network, customerId, controllers, branches, isOpen]);
+  }, [isOpen, network?.id, customerId]);
 
   useEffect(() => {
     if (!isOpen) return;

@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import CopyButton from './CopyButton';
 
+const EMPTY_ARRAY = [];
+
 // ============================================================================
 // 1. MAIL SERVICE & PANEL MODAL (Microsoft 365, Exchange, Google, cPanel)
 // ============================================================================
@@ -15,7 +17,7 @@ export function MailServiceModal({
   onSave,
   service,
   customerId,
-  branches = []
+  branches = EMPTY_ARRAY
 }) {
   const [formData, setFormData] = useState({
     customer_id: customerId,
@@ -42,6 +44,7 @@ export function MailServiceModal({
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) return;
     if (service) {
       setFormData({
         customer_id: service.customer_id || customerId,
@@ -86,7 +89,7 @@ export function MailServiceModal({
       });
     }
     setShowPassword(false);
-  }, [service, customerId, isOpen]);
+  }, [isOpen, service?.id, customerId]);
 
   // Handle Preset templates for fast configuration
   const handleServiceTypeChange = (type) => {
@@ -503,8 +506,8 @@ export function MailAccountModal({
   onSave,
   account,
   customerId,
-  mailServices = [],
-  branches = []
+  mailServices = EMPTY_ARRAY,
+  branches = EMPTY_ARRAY
 }) {
   const [formData, setFormData] = useState({
     customer_id: customerId,
@@ -526,6 +529,7 @@ export function MailAccountModal({
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) return;
     if (account) {
       setFormData({
         customer_id: account.customer_id || customerId,
@@ -562,7 +566,7 @@ export function MailAccountModal({
       });
     }
     setShowPassword(false);
-  }, [account, customerId, mailServices, branches, isOpen]);
+  }, [isOpen, account?.id, customerId]);
 
   // Generate strong random password
   const generatePassword = () => {
