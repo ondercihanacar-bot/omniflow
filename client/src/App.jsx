@@ -159,13 +159,22 @@ export default function App() {
   };
 
   // User Authentication & Session State
-  // Web sayfasını her kapatıp açtığımızda oturum sıfırlanmalı ve giriş ekranı gelmelidir.
-  // Oturum sadece aktif sekme süresince (sessionStorage) tutulur, localStorage'da saklanmaz.
+  // Web sayfasını veya pencereyi çarpıdan kapattığımızda oturum sıfırlanmalı ve parola giriş ekranı gelmelidir.
+  // Sadece aynı sekmede F5/yenileme yapıldığında oturum korunur; yeni açılışta veya çarpıdan kapatıp açılışta parola sorulur.
   const [currentUser, setCurrentUser] = useState(() => {
     try {
-      // Temizleme: Eski kalıcı localStorage oturumlarını otomatik temizle
       localStorage.removeItem('itmanager_user_session');
       localStorage.removeItem('itmanager_admin_logged_in');
+
+      const navEntries = typeof performance !== 'undefined' && performance.getEntriesByType && performance.getEntriesByType('navigation');
+      const isReload = (navEntries && navEntries[0] && navEntries[0].type === 'reload') ||
+                       (typeof window !== 'undefined' && window.performance && window.performance.navigation && window.performance.navigation.type === 1);
+
+      if (!isReload) {
+        sessionStorage.removeItem('itmanager_user_session');
+        sessionStorage.removeItem('itmanager_admin_logged_in');
+        return null;
+      }
 
       const saved = sessionStorage.getItem('itmanager_user_session');
       if (saved) {

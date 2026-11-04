@@ -1007,18 +1007,44 @@ app.get('/api/customers/:id', (req, res) => {
     `).all(customer.id);
     const branches = db.prepare('SELECT * FROM customer_branches WHERE customer_id = ? ORDER BY branch_name ASC').all(customer.id);
 
+    // Decrypt sensitive credentials for authorized client viewing
+    const decrypted_wifi_networks = wifi_networks.map(w => ({
+      ...w,
+      password: security.decryptSensitive(w.password)
+    }));
+
+    const decrypted_wifi_controllers = wifi_controllers.map(c => ({
+      ...c,
+      password: security.decryptSensitive(c.password)
+    }));
+
+    const decrypted_physical_servers = physical_servers.map(s => ({
+      ...s,
+      management_password: security.decryptSensitive(s.management_password)
+    }));
+
+    const decrypted_firewalls = firewalls.map(f => ({
+      ...f,
+      password: security.decryptSensitive(f.password)
+    }));
+
+    const decrypted_backup_units = backup_units.map(b => ({
+      ...b,
+      password: security.decryptSensitive(b.password)
+    }));
+
     res.json({
       ...customer,
       branches,
       internet_lines,
-      physical_servers,
+      physical_servers: decrypted_physical_servers,
       virtual_machines,
       user_computers,
-      firewalls,
-      backup_units,
-      wifi_controllers,
+      firewalls: decrypted_firewalls,
+      backup_units: decrypted_backup_units,
+      wifi_controllers: decrypted_wifi_controllers,
       wifi_access_points,
-      wifi_networks,
+      wifi_networks: decrypted_wifi_networks,
       antivirus_licenses,
       mail_services,
       mail_accounts
@@ -1526,6 +1552,9 @@ app.post('/api/physical-servers', (req, res) => {
     );
 
     const created = db.prepare('SELECT * FROM physical_servers WHERE id = ?').get(result.lastInsertRowid);
+    if (created) {
+      created.management_password = security.decryptSensitive(created.management_password);
+    }
     res.status(201).json(created);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1565,12 +1594,15 @@ app.put('/api/physical-servers/:id', (req, res) => {
       ip_address_2 || '', mac_address_2 || '',
       ip_address_3 || '', mac_address_3 || '',
       ip_address_4 || '', mac_address_4 || '',
-      management_ip || '', management_user || '', management_password || '',
+      management_ip || '', management_user || '', security.encryptSensitive(management_password || ''),
       local_admin_user || '', local_admin_password || '',
       branch_name || 'Merkez Ofis', location || '', status || 'Aktif', notes || '', req.params.id
     );
 
     const updated = db.prepare('SELECT * FROM physical_servers WHERE id = ?').get(req.params.id);
+    if (updated) {
+      updated.management_password = security.decryptSensitive(updated.management_password);
+    }
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2076,6 +2108,9 @@ app.post('/api/firewalls', (req, res) => {
     );
 
     const created = db.prepare('SELECT * FROM firewalls WHERE id = ?').get(result.lastInsertRowid);
+    if (created) {
+      created.password = security.decryptSensitive(created.password);
+    }
     res.status(201).json(created);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2104,6 +2139,9 @@ app.put('/api/firewalls/:id', (req, res) => {
     );
 
     const updated = db.prepare('SELECT * FROM firewalls WHERE id = ?').get(req.params.id);
+    if (updated) {
+      updated.password = security.decryptSensitive(updated.password);
+    }
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2618,7 +2656,11 @@ app.get('/api/backup-units', (req, res) => {
         ORDER BY c.name, bu.device_name
       `).all();
     }
-    res.json(rows);
+    const decrypted = rows.map(r => ({
+      ...r,
+      password: security.decryptSensitive(r.password)
+    }));
+    res.json(decrypted);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -2649,6 +2691,9 @@ app.post('/api/backup-units', (req, res) => {
     );
 
     const created = db.prepare('SELECT * FROM backup_units WHERE id = ?').get(result.lastInsertRowid);
+    if (created) {
+      created.password = security.decryptSensitive(created.password);
+    }
     res.status(201).json(created);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2677,6 +2722,9 @@ app.put('/api/backup-units/:id', (req, res) => {
     );
 
     const updated = db.prepare('SELECT * FROM backup_units WHERE id = ?').get(req.params.id);
+    if (updated) {
+      updated.password = security.decryptSensitive(updated.password);
+    }
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2997,7 +3045,11 @@ app.get('/api/wifi-networks', (req, res) => {
         ORDER BY c.name, wn.branch_name, wn.ssid
       `).all();
     }
-    res.json(rows);
+    const decrypted = rows.map(r => ({
+      ...r,
+      password: security.decryptSensitive(r.password)
+    }));
+    res.json(decrypted);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -3029,6 +3081,9 @@ app.post('/api/wifi-networks', (req, res) => {
     );
 
     const created = db.prepare('SELECT * FROM wifi_networks WHERE id = ?').get(result.lastInsertRowid);
+    if (created) {
+      created.password = security.decryptSensitive(created.password);
+    }
     res.status(201).json(created);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -3049,14 +3104,19 @@ app.put('/api/wifi-networks/:id', (req, res) => {
       WHERE id = ?
     `);
 
+    const pwdToSave = security.encryptSensitive(password || '');
+
     stmt.run(
-      controller_id || null, ssid.trim(), password || '',
+      controller_id || null, ssid.trim(), pwdToSave,
       security_type || 'WPA2/WPA3 Personal', vlan_id || '',
       band || '2.4 GHz & 5 GHz', branch_name || 'Merkez Ofis',
       is_guest ? 1 : 0, notes || '', req.params.id
     );
 
     const updated = db.prepare('SELECT * FROM wifi_networks WHERE id = ?').get(req.params.id);
+    if (updated) {
+      updated.password = security.decryptSensitive(updated.password);
+    }
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -3612,14 +3672,14 @@ function generateFullJsonExport() {
     customers: customers.map(c => ({
       ...c,
       internet_lines: lines.filter(l => l.customer_id === c.id),
-      physical_servers: servers.filter(s => s.customer_id === c.id),
+      physical_servers: servers.filter(s => s.customer_id === c.id).map(s => ({ ...s, management_password: security.decryptSensitive(s.management_password) })),
       virtual_machines: vms.filter(v => v.customer_id === c.id),
       user_computers: pcs.filter(p => p.customer_id === c.id),
-      firewalls: firewalls.filter(f => f.customer_id === c.id),
-      backup_units: backups.filter(b => b.customer_id === c.id),
-      wifi_controllers: wifiControllers.filter(wc => wc.customer_id === c.id),
+      firewalls: firewalls.filter(f => f.customer_id === c.id).map(f => ({ ...f, password: security.decryptSensitive(f.password) })),
+      backup_units: backups.filter(b => b.customer_id === c.id).map(b => ({ ...b, password: security.decryptSensitive(b.password) })),
+      wifi_controllers: wifiControllers.filter(wc => wc.customer_id === c.id).map(wc => ({ ...wc, password: security.decryptSensitive(wc.password) })),
       wifi_access_points: wifiAps.filter(ap => ap.customer_id === c.id),
-      wifi_networks: wifiNetworks.filter(wn => wn.customer_id === c.id),
+      wifi_networks: wifiNetworks.filter(wn => wn.customer_id === c.id).map(wn => ({ ...wn, password: security.decryptSensitive(wn.password) })),
       antivirus_licenses: antivirusLicenses.filter(av => av.customer_id === c.id),
       mail_services: mailServices.filter(ms => ms.customer_id === c.id),
       mail_accounts: mailAccounts.filter(ma => ma.customer_id === c.id)
