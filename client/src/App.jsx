@@ -336,26 +336,37 @@ export default function App() {
     }
   }, []);
 
-  const loadCustomers = useCallback(async (selectId = null) => {
+  const loadCustomers = useCallback(async (selectId = undefined) => {
     try {
       const list = await api.getCustomers();
-      setCustomers(list);
-      if (selectId) {
-        setSelectedCustomerId(selectId);
-      } else if (selectedCustomerId && list.some(c => c.id === selectedCustomerId)) {
-        // Keep active customer selected if still existing in list
-        setSelectedCustomerId(selectedCustomerId);
+      setCustomers(list || []);
+
+      if (selectId !== undefined) {
+        if (selectId === null) {
+          // Explicitly requested to clear selection (Home / Hero screen)
+          setSelectedCustomerId(null);
+          setCustomerData(null);
+        } else {
+          setSelectedCustomerId(selectId);
+        }
       } else {
-        // Trial mode: on initial startup / refresh, landing view shows the animated logo hero screen
-        setSelectedCustomerId(null);
-        setCustomerData(null);
+        // Standard background refresh: PRESERVE active customer safely via functional update
+        setSelectedCustomerId(prevId => {
+          if (!prevId) return null;
+          const exists = list && list.some(c => String(c.id) === String(prevId));
+          if (!exists) {
+            setCustomerData(null);
+            return null;
+          }
+          return prevId;
+        });
       }
     } catch (err) {
-      console.error(err);
+      console.error('loadCustomers error:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedCustomerId]);
+  }, []);
 
   const loadCustomerDetails = useCallback(async (id) => {
     if (!id) return;
@@ -818,6 +829,7 @@ export default function App() {
   // Mail Handlers
   const handleSaveMailService = async (formData) => {
     try {
+      const activeId = selectedCustomerId || formData.customer_id;
       if (editingMailService) {
         await api.updateMailService(editingMailService.id, formData);
       } else {
@@ -825,8 +837,10 @@ export default function App() {
       }
       setIsMailServiceModalOpen(false);
       setEditingMailService(null);
-      await loadCustomerDetails(selectedCustomerId);
-      await loadCustomers();
+      if (activeId) {
+        await loadCustomerDetails(activeId);
+      }
+      await loadCustomers(activeId);
       await loadLicenseAlerts();
       await loadStats();
     } catch (err) {
@@ -843,8 +857,10 @@ export default function App() {
         try {
           await api.deleteMailService(serviceId);
           setConfirmDialog({ isOpen: false });
-          await loadCustomerDetails(selectedCustomerId);
-          await loadCustomers();
+          if (selectedCustomerId) {
+            await loadCustomerDetails(selectedCustomerId);
+          }
+          await loadCustomers(selectedCustomerId);
           await loadLicenseAlerts();
           await loadStats();
         } catch (err) {
@@ -856,6 +872,7 @@ export default function App() {
 
   const handleSaveMailAccount = async (formData) => {
     try {
+      const activeId = selectedCustomerId || formData.customer_id;
       if (editingMailAccount) {
         await api.updateMailAccount(editingMailAccount.id, formData);
       } else {
@@ -863,8 +880,10 @@ export default function App() {
       }
       setIsMailAccountModalOpen(false);
       setEditingMailAccount(null);
-      await loadCustomerDetails(selectedCustomerId);
-      await loadCustomers();
+      if (activeId) {
+        await loadCustomerDetails(activeId);
+      }
+      await loadCustomers(activeId);
       await loadStats();
     } catch (err) {
       alert(err.message);
@@ -889,8 +908,10 @@ export default function App() {
         try {
           await api.deleteMailAccount(accountId);
           setConfirmDialog({ isOpen: false });
-          await loadCustomerDetails(selectedCustomerId);
-          await loadCustomers();
+          if (selectedCustomerId) {
+            await loadCustomerDetails(selectedCustomerId);
+          }
+          await loadCustomers(selectedCustomerId);
           await loadStats();
         } catch (err) {
           alert(err.message);

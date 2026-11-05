@@ -91,7 +91,15 @@ export function WifiControllerModal({ isOpen, onClose, onSave, controller, custo
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 text-xs">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-5 overflow-y-auto space-y-4 text-xs"
+        >
           <div>
             <label className="block text-slate-300 font-semibold mb-1">
               Kontrolcü / Panel Adı *
@@ -344,7 +352,15 @@ export function WifiAPModal({ isOpen, onClose, onSave, ap, customerId, controlle
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 text-xs">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-5 overflow-y-auto space-y-4 text-xs"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-300 font-semibold mb-1">
@@ -630,7 +646,15 @@ export function WifiNetworkModal({ isOpen, onClose, onSave, network, customerId,
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 text-xs">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-5 overflow-y-auto space-y-4 text-xs"
+        >
           <div>
             <label className="block text-slate-300 font-semibold mb-1 flex items-center gap-1">
               <Wifi className="w-3.5 h-3.5 text-blue-400" />

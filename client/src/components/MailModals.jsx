@@ -174,7 +174,15 @@ export function MailServiceModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1"
+        >
           {/* Servis Başlığı ve Türü */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -623,7 +631,15 @@ export function MailAccountModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1"
+        >
           {/* Bağlı Servis & Posta Kutusu Türü */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -749,11 +765,28 @@ export function MailAccountModal({
               </label>
               <input
                 type="text"
+                list="mail-dept-suggestions"
                 placeholder="Örn: Muhasebe, Satış, Yönetim..."
                 value={formData.department}
                 onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                 className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-blue-500"
               />
+              <datalist id="mail-dept-suggestions">
+                <option value="Genel" />
+                <option value="Yönetim" />
+                <option value="Muhasebe" />
+                <option value="Finans" />
+                <option value="Satış" />
+                <option value="Pazarlama" />
+                <option value="Bilgi İşlem / IT" />
+                <option value="Operasyon" />
+                <option value="İnsan Kaynakları" />
+                <option value="Satın Alma" />
+                <option value="Lojistik" />
+                <option value="Üretim" />
+                <option value="Hukuk" />
+                <option value="Teknik Servis" />
+              </datalist>
             </div>
 
             <div>
@@ -762,11 +795,17 @@ export function MailAccountModal({
               </label>
               <input
                 type="text"
+                list="mail-branch-suggestions"
                 placeholder="Merkez Ofis"
                 value={formData.branch_name}
                 onChange={(e) => setFormData({ ...formData, branch_name: e.target.value })}
                 className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-blue-500"
               />
+              <datalist id="mail-branch-suggestions">
+                {(branches && branches.length > 0 ? branches : ['Merkez Ofis']).map((b, idx) => (
+                  <option key={idx} value={b} />
+                ))}
+              </datalist>
             </div>
           </div>
 

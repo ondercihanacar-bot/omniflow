@@ -92,13 +92,6 @@ export default function Navbar({
           <div
             onClick={onGoHome}
             role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if ((e.key === 'Enter' || e.key === ' ') && onGoHome) {
-                e.preventDefault();
-                onGoHome();
-              }
-            }}
             className="flex-1 h-full flex items-center justify-center p-1.5 sm:p-2 overflow-hidden cursor-pointer group select-none"
             title={t('navbar.goHome') || 'OmniFlow - Ana Sayfaya Git'}
           >
